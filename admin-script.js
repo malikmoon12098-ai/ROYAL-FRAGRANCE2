@@ -339,6 +339,7 @@ function openAddModal() {
     document.getElementById('product-form').reset();
     document.getElementById('product-id').value = ""; // Clear ID for new add
     document.getElementById('product-image').value = ""; // Clear Image
+    document.getElementById('product-category').value = "Unisex"; // Default
     openModal('product-modal');
 }
 
@@ -350,9 +351,10 @@ function openEditModal(id) {
         document.getElementById('modal-title').textContent = "Edit Product";
         document.getElementById('product-id').value = product.id;
         document.getElementById('product-name').value = product.name;
+        document.getElementById('product-category').value = product.category || "Unisex"; // Load Category
         document.getElementById('product-price').value = product.price;
         document.getElementById('product-cost').value = product.costPrice || 0;
-        document.getElementById('product-image').value = product.image || ""; // Pre-fill image
+        document.getElementById('product-image').value = product.image || "";
         document.getElementById('product-stock').value = product.stock;
         openModal('product-modal');
     }
@@ -364,9 +366,10 @@ function handleProductSubmit(e) {
     // Get Values
     const id = document.getElementById('product-id').value;
     const name = document.getElementById('product-name').value;
+    const category = document.getElementById('product-category').value; // Get Category
     const price = parseFloat(document.getElementById('product-price').value);
     const costPrice = parseFloat(document.getElementById('product-cost').value) || 0;
-    const image = document.getElementById('product-image').value || "path/to/default.jpg"; // Capture Image
+    const image = document.getElementById('product-image').value || "path/to/default.jpg";
     const stock = parseInt(document.getElementById('product-stock').value);
 
     let products = JSON.parse(localStorage.getItem('rf_products')) || [];
@@ -375,12 +378,12 @@ function handleProductSubmit(e) {
         // EDIT MODE
         const index = products.findIndex(p => p.id == id);
         if (index > -1) {
-            products[index] = { id: parseInt(id), name, price, costPrice, image, stock };
+            products[index] = { id: parseInt(id), name, category, price, costPrice, image, stock };
         }
     } else {
         // ADD MODE
-        const newId = Date.now(); // Simple ID generation
-        products.push({ id: newId, name, price, costPrice, image, stock });
+        const newId = Date.now();
+        products.push({ id: newId, name, category, price, costPrice, image, stock });
     }
 
     localStorage.setItem('rf_products', JSON.stringify(products));
