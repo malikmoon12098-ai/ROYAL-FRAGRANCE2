@@ -221,15 +221,106 @@ function loadProducts() {
 
 function loadOrders() {
     const main = document.getElementById('main-content');
+    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+
+    // Filter Logic
+    const pendingOrders = orders.filter(o => o.status === 'Pending');
+    const completedOrders = orders.filter(o => o.status === 'Completed');
+
     main.innerHTML = `
         <header class="header">
             <h1>Order Management</h1>
+            <div class="user-profile"><i class="fa-solid fa-user-circle"></i> Admin</div>
         </header>
-        <div class="table-container" style="padding:2rem; text-align:center; color:#777;">
-            <i class="fa-solid fa-truck-fast" style="font-size:3rem; margin-bottom:1rem;"></i>
-            <p>Full Order Management System is under development.</p>
-        </div>
+
+        <section class="orders-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <!-- Pending Orders Column -->
+            <div class="card" style="background: #1e293b; border: 1px solid #334155; padding: 1rem; border-radius: 8px;">
+                <h3 style="color: #f59e0b; margin-bottom: 1rem;"><i class="fa-solid fa-clock"></i> Pending Orders (${pendingOrders.length})</h3>
+                <div class="order-list">
+                    ${pendingOrders.length > 0 ? pendingOrders.map(order => `
+                        <div class="order-card" style="background: rgba(255,255,255,0.05); padding: 1rem; margin-bottom: 1rem; border-radius: 6px; border-left: 4px solid #f59e0b;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                                <strong>#${order.id}</strong>
+                                <span style="font-size:0.8rem; color:#ccc;">${order.date}</span>
+                            </div>
+                            <div style="margin-bottom:0.5rem; font-size:0.9rem;">
+                                <strong>Customer:</strong> ${order.customer ? order.customer.name : 'Guest'}<br>
+                                <strong>Total:</strong> PKR ${order.total.toLocaleString()}
+                            </div>
+                            <details style="margin-bottom:0.8rem; font-size:0.85rem; color:#94a3b8;">
+                                <summary style="cursor:pointer;">View Items</summary>
+                                <ul style="margin-top:0.5rem; padding-left:1rem;">
+                                    ${order.items.map(i => `<li>${i.name} (x${i.qty})</li>`).join('')}
+                                </ul>
+                            </details>
+                            <button class="btn-primary" style="width:100%; background: #10b981;" onclick="updateOrderStatus(${order.id}, 'Completed')">
+                                <i class="fa-solid fa-check"></i> Mark Complete & Deduct Stock
+                            </button>
+                        </div>
+                    `).join('') : '<p style="color:#64748b;">No pending orders.</p>'}
+                </div>
+            </div>
+
+            <!-- Completed Orders Column -->
+            <div class="card" style="background: #1e293b; border: 1px solid #334155; padding: 1rem; border-radius: 8px;">
+                <h3 style="color: #10b981; margin-bottom: 1rem;"><i class="fa-solid fa-check-circle"></i> Completed History</h3>
+                <div class="order-list">
+                    ${completedOrders.length > 0 ? completedOrders.map(order => `
+                        <div class="order-card" style="background: rgba(255,255,255,0.02); padding: 1rem; margin-bottom: 1rem; border-radius: 6px; border-left: 4px solid #10b981; opacity: 0.8;">
+                             <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+                                <strong>#${order.id}</strong>
+                                <span class="badge completed">Completed</span>
+                            </div>
+                             <div style="font-size:0.9rem;">
+                                ${order.customer ? order.customer.name : 'Guest'} - PKR ${order.total.toLocaleString()}
+                            </div>
+                        </div>
+                    `).join('') : '<p style="color:#64748b;">No completed orders yet.</p>'}
+                </div>
+            </div>
+        </section>
     `;
+}
+
+function updateOrderStatus(orderId, newStatus) {
+    let orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    let products = JSON.parse(localStorage.getItem('rf_products')) || [];
+
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    if (orderIndex === -1) return;
+
+    const order = orders[orderIndex];
+
+    // If marking as Completed, deduct stock
+    if (newStatus === 'Completed' && order.status !== 'Completed') {
+        let stockIssue = false;
+
+        // Check and Deduct Stock
+        order.items.forEach(item => {
+            const product = products.find(p => p.id === item.id);
+            if (product) {
+                if (product.stock >= item.qty) {
+                    product.stock -= item.qty;
+                } else {
+                    stockIssue = true;
+                    alert(`Warning: Not enough stock for ${item.name}! Stock might go negative.`);
+                    product.stock -= item.qty; // Allow negative for logic consistency or stop? Let's allow but warn.
+                }
+            }
+        });
+
+        // Save updated products stock
+        localStorage.setItem('rf_products', JSON.stringify(products));
+    }
+
+    // Update Order Status
+    orders[orderIndex].status = newStatus;
+    localStorage.setItem('rf_orders', JSON.stringify(orders));
+
+    // Refresh View
+    loadOrders();
+    // Also refresh product list if checking stock there
 }
 
 /* --- MODAL FUNCTIONS --- */

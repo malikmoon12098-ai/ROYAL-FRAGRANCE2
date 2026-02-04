@@ -158,6 +158,17 @@
 
     <script src="products.js"></script>
     <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if products loaded correctly
+            if (typeof products !== 'undefined' && typeof renderProducts === 'function') {
+                renderProducts('shop-grid', products);
+            } else {
+                console.error("Products or render function missing.");
+                document.getElementById('shop-grid').innerHTML = "<p>Error loading products. Please try again.</p>";
+            }
+        });
+    </script>
 </body>
 
 </html>

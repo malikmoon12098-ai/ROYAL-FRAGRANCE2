@@ -168,16 +168,59 @@
         function handleCheckout(e) {
             e.preventDefault();
 
-            // Simulating Order Processing
-            const btn = e.target.querySelector('button[type="submit"]');
+            // 1. Capture Form Data
+            const form = e.target;
+            const name = form.querySelector('input[type="text"]').value; // Assuming first input is name
+            const email = form.querySelector('input[type="email"]').value;
+            const phone = form.querySelector('input[type="tel"]').value;
+            const address = form.querySelector('input:nth-of-type(4)').value; // Address
+            const city = form.querySelector('select').value;
+
+            // 2. Get Cart Data
+            const cart = JSON.parse(localStorage.getItem('rf_cart')) || [];
+            if (cart.length === 0) {
+                alert("Your cart is empty!");
+                return;
+            }
+
+            const totalAmount = cart.reduce((sum, item) => sum + (item.price * (item.qty || 1)), 0);
+
+            // 3. Create Order Object
+            const newOrder = {
+                id: Date.now(), // Unique ID
+                date: new Date().toISOString().split('T')[0],
+                status: 'Pending', // Default Status
+                total: totalAmount,
+                customer: {
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    address: address,
+                    city: city
+                },
+                items: cart.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    qty: item.qty || 1
+                }))
+            };
+
+            // 4. Save to LocalStorage (rf_orders)
+            const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+            orders.unshift(newOrder); // Add to beginning
+            localStorage.setItem('rf_orders', JSON.stringify(orders));
+
+            // 5. UI Feedback & Redirect
+            const btn = form.querySelector('button[type="submit"]');
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...';
             btn.disabled = true;
 
             setTimeout(() => {
-                alert('Order Placed Successfully! You will receive a WhatsApp confirmation shortly.');
+                alert(`Order Placed Successfully! Your Order ID is #${newOrder.id}`);
                 localStorage.removeItem('rf_cart'); // Clear cart
                 window.location.href = 'index.html';
-            }, 2000);
+            }, 1500);
         }
     </script>
 </body>
