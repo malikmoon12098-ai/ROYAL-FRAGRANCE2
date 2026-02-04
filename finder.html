@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Perfume Finder | ROYAL FRAGRANCE</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Quiz Specific Styles */
+        .quiz-container {
+            max-width: 800px;
+            margin: 4rem auto;
+            text-align: center;
+            background: white;
+            padding: 3rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .quiz-step {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .quiz-step.active {
+            display: block;
+        }
+
+        .quiz-question {
+            font-size: 2rem;
+            color: var(--color-primary);
+            margin-bottom: 2rem;
+        }
+
+        .quiz-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .option-card {
+            border: 2px solid #eee;
+            padding: 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .option-card:hover,
+        .option-card.selected {
+            border-color: var(--color-gold);
+            background-color: var(--color-light-gray);
+        }
+
+        .option-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .progress-bar {
+            height: 5px;
+            background-color: #eee;
+            margin-bottom: 2rem;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--color-gold);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Result Animation */
+        .finding-animation {
+            font-size: 1.5rem;
+            color: var(--color-gray);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Nav -->
+    <header class="main-header">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">ROYAL FRAGRANCE</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="quiz-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+            </div>
+
+            <!-- Introduction -->
+            <div class="quiz-step active" id="step-0">
+                <h1 class="quiz-question">Discover Your Perfect Scent</h1>
+                <p style="margin-bottom:2rem;">Let our AI analyze your preferences and suggest the ideal fragrance for
+                    you.</p>
+                <button class="btn btn-primary" onclick="nextStep(1)">Start Quiz</button>
+            </div>
+
+            <!-- Q1: Mood -->
+            <div class="quiz-step" id="step-1">
+                <h2 class="quiz-question">How do you want to feel?</h2>
+                <div class="quiz-options">
+                    <div class="option-card" onclick="selectOption(1, 'Romantic')">
+                        <span class="option-icon">❤️</span>
+                        <span>Romantic</span>
+                    </div>
+                    <div class="option-card" onclick="selectOption(1, 'Bold')">
+                        <span class="option-icon">🔥</span>
+                        <span>Bold & Confident</span>
+                    </div>
+                    <div class="option-card" onclick="selectOption(1, 'Fresh')">
+                        <span class="option-icon">🍃</span>
+                        <span>Fresh & Energetic</span>
+                    </div>
+                    <div class="option-card" onclick="selectOption(1, 'Relaxed')">
+                        <span class="option-icon">😌</span>
+                        <span>Calm & Relaxed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Q2: Occasion -->
+            <div class="quiz-step" id="step-2">
+                <h2 class="quiz-question">Where will you wear it?</h2>
+                <div class="quiz-options">
+                    <div class="option-card" onclick="selectOption(2, 'Office')">
+                        <span class="option-icon">💼</span>
+                        <span>Work / Office</span>
+                    </div>
+                    <div class="option-card" onclick="selectOption(2, 'Date')">
+                        <span class="option-icon">🍷</span>
+                        <span>Date Night</span>
+                    </div>
+                    <div class="option-card" onclick="selectOption(2, 'Daily')">
+                        <span class="option-icon">☀️</span>
+                        <span>Daily Wear</span>
+                    </div>
+                    <div class="option-card" onclick="selectOption(2, 'Party')">
+                        <span class="option-icon">🎉</span>
+                        <span>Party / Event</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Loading -->
+            <div class="quiz-step" id="step-result-loading">
+                <div class="finding-animation">
+                    <i class="fa-solid fa-circle-notch fa-spin"
+                        style="color:var(--color-gold); font-size:3rem; margin-bottom:1rem;"></i>
+                    <p>AI is analyzing your scent profile...</p>
+                </div>
+            </div>
+
+            <!-- Final Result -->
+            <div class="quiz-step" id="step-final">
+                <h2 class="quiz-question">Your Perfect Match</h2>
+                <div id="recommendation-content">
+                    <!-- Injected Product -->
+                </div>
+                <div style="margin-top:2rem;">
+                    <button class="btn btn-outline" onclick="location.reload()">Retake Quiz</button>
+                    <button class="btn btn-primary" onclick="location.href='shop.html'">View All</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="products.js"></script>
+    <script>
+        let currentStep = 0;
+        let answers = {};
+
+        function nextStep(step) {
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            currentStep = step;
+            document.getElementById(`step-${currentStep}`).classList.add('active');
+
+            // Update Progress
+            const totalSteps = 2; // Intro is 0, loading is separate
+            const progress = (step / totalSteps) * 100;
+            if (step <= totalSteps) {
+                document.getElementById('progress').style.width = `${progress}%`;
+            }
+        }
+
+        function selectOption(step, value) {
+            answers[step] = value;
+            if (step < 2) {
+                nextStep(step + 1);
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            nextStep('result-loading');
+            setTimeout(() => {
+                // Simulate AI Logic
+                const recommended = products[Math.floor(Math.random() * products.length)]; // Random for demo
+
+                const html = `
+                    <div class="product-card" style="max-width:300px; margin:0 auto; box-shadow:none; border:1px solid #eee;">
+                        <div class="product-image" style="height:250px;">
+                             <i class="fa-solid fa-bottle-droplet" style="font-size:3rem; opacity:0.3;"></i>
+                        </div>
+                        <div class="product-info">
+                            <h3>${recommended.name}</h3>
+                            <p>${recommended.description}</p>
+                            <p class="product-price">$${recommended.price}</p>
+                            <button class="btn btn-primary" style="margin-top:1rem;" onclick="addToCart(${recommended.id})">Add to Cart</button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('recommendation-content').innerHTML = html;
+                nextStep('final');
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>

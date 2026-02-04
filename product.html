@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details | ROYAL FRAGRANCE</title>
+
+    <!-- Google Fonts & Icons -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* PDP Specific Styles */
+        .pdp-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            padding: 4rem 0;
+            align-items: center;
+        }
+
+        .pdp-image-gallery {
+            background-color: var(--color-light-gray);
+            height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .pdp-details h1 {
+            font-size: 2.5rem;
+            color: var(--color-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .pdp-price {
+            font-size: 1.5rem;
+            color: var(--color-gold);
+            margin-bottom: 2rem;
+            font-weight: 700;
+        }
+
+        .pdp-description {
+            font-size: 1.1rem;
+            color: var(--color-gray);
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .fragrance-notes {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f9f9f9;
+            border-left: 3px solid var(--color-gold);
+        }
+
+        .note-category {
+            font-weight: 700;
+            color: var(--color-dark);
+            margin-right: 0.5rem;
+        }
+
+        .add-to-cart-section {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .quantity-selector {
+            display: flex;
+            align-items: center;
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+        }
+
+        .quantity-selector button {
+            background: none;
+            border: none;
+            width: 30px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .quantity-selector input {
+            width: 40px;
+            text-align: center;
+            border: none;
+            font-size: 1rem;
+            -moz-appearance: textfield;
+        }
+
+        @media (max-width: 768px) {
+            .pdp-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .pdp-image-gallery {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Nav -->
+    <header class="main-header">
+        <div class="container nav-container">
+            <button class="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+            <a href="index.html" class="logo">ROYAL FRAGRANCE</a>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="shop.html">Shop</a></li>
+                    <li><a href="finder.html">AI Finder</a></li>
+                    <li><a href="index.html#story">Our Story</a></li>
+                </ul>
+            </nav>
+            <div class="nav-icons">
+                <button class="cart-btn"><i class="fa-solid fa-bag-shopping"></i> <span
+                        class="cart-count">0</span></button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container pdp-container" id="product-detail">
+        <!-- JS will inject content here -->
+        <div class="loading-spinner">Loading Product Details...</div>
+    </div>
+
+    <script src="products.js"></script>
+    <script src="script.js"></script>
+    <script>
+        // Inline JS for basic PDP logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const productId = parseInt(params.get('id'));
+
+            // Allow fallback if no ID (show first product for demo)
+            const product = productId ? products.find(p => p.id === productId) : products[0];
+
+            if (product) {
+                const container = document.getElementById('product-detail');
+                container.innerHTML = `
+                    <div class="pdp-image-gallery">
+                         <i class="fa-solid fa-bottle-droplet" style="font-size:5rem; color:#ccc;"></i>
+                    </div>
+                    <div class="pdp-details">
+                        <h1>${product.name}</h1>
+                        <p class="pdp-price">PKR ${product.price.toLocaleString()}</p>
+                        <p class="pdp-description">${product.description}</p>
+                        
+                        <div class="fragrance-notes">
+                            <p><span class="note-category">Top Notes:</span> Bergamot, Lemon, Spice</p>
+                            <p><span class="note-category">Heart Notes:</span> Jasmine, Rose, Oud</p>
+                            <p><span class="note-category">Base Notes:</span> Musk, Amber, Vanilla</p>
+                        </div>
+
+                        <div class="add-to-cart-section">
+                            <div class="quantity-selector">
+                                <button onclick="decreaseQty()">-</button>
+                                <input type="number" id="qty" value="1" min="1" readonly>
+                                <button onclick="increaseQty()">+</button>
+                            </div>
+                            <button class="btn btn-primary" onclick="addToCart(${product.id})">Add to Cart</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                document.getElementById('product-detail').innerHTML = "<p>Product not found.</p>";
+            }
+        });
+
+        function increaseQty() {
+            const input = document.getElementById('qty');
+            input.value = parseInt(input.value) + 1;
+        }
+
+        function decreaseQty() {
+            const input = document.getElementById('qty');
+            if (parseInt(input.value) > 1) input.value = parseInt(input.value) - 1;
+        }
+    </script>
+</body>
+
+</html>

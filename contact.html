@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us | ROYAL FRAGRANCE</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Notification Bar -->
+    <div class="top-bar">
+        <p>Complimentary Shipping on Orders Over PKR 10,000</p>
+    </div>
+
+    <!-- Navigation -->
+    <header class="main-header">
+        <div class="container nav-container">
+            <button class="menu-toggle" aria-label="Open Menu"><i class="fa-solid fa-bars"></i></button>
+            <a href="index.html" class="logo">ROYAL FRAGRANCE</a>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="shop.html">Shop</a></li>
+                    <li><a href="story.html">Our Story</a></li>
+                    <li><a href="contact.html" class="active">Contact</a></li>
+                </ul>
+            </nav>
+            <div class="nav-icons">
+                <button class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <button class="cart-btn">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span class="cart-count">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contact Section -->
+    <section class="section container">
+        <div class="section-title">
+            <h1>Contact Us</h1>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; margin-top: 2rem;">
+
+            <!-- Contact Info -->
+            <div>
+                <h3 style="margin-bottom: 1.5rem; font-size: 1.5rem;">Get in Touch</h3>
+                <p style="margin-bottom: 2rem; color: var(--color-text-body);">
+                    We'd love to hear from you. Whether you have a question about our scents, pricing, or anything else,
+                    our team is ready to answer all your questions.
+                </p>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <strong style="display:block; margin-bottom:0.5rem; color:var(--color-primary);">Visit Us</strong>
+                    <p>123 Luxury Lane, Fashion District<br>Paris, France 75001</p>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <strong style="display:block; margin-bottom:0.5rem; color:var(--color-primary);">Email Us</strong>
+                    <p>concierge@royalfragrance.com</p>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <strong style="display:block; margin-bottom:0.5rem; color:var(--color-primary);">Call Us</strong>
+                    <p>+33 1 23 45 67 89</p>
+                </div>
+            </div>
+
+            <!-- Contact Form -->
+            <div
+                style="background: #fff; padding: 2rem; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--color-border);">
+                <form>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display:block; margin-bottom:0.5rem; font-weight:700;">Name</label>
+                        <input type="text"
+                            style="width:100%; padding:0.8rem; border:1px solid var(--color-border); border-radius:8px;"
+                            placeholder="Your Name">
+                    </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display:block; margin-bottom:0.5rem; font-weight:700;">Email</label>
+                        <input type="email"
+                            style="width:100%; padding:0.8rem; border:1px solid var(--color-border); border-radius:8px;"
+                            placeholder="Your Email">
+                    </div>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display:block; margin-bottom:0.5rem; font-weight:700;">Message</label>
+                        <textarea rows="4"
+                            style="width:100%; padding:0.8rem; border:1px solid var(--color-border); border-radius:8px;"
+                            placeholder="How can we help?"></textarea>
+                    </div>
+                    <button type="button" class="btn btn-primary" style="width:100%;">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-col">
+                <h4>Royal Fragrance</h4>
+                <p>Elegance in every drop.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Explore</h4>
+                <ul>
+                    <li><a href="shop.html">Shop Collection</a></li>
+                    <li><a href="story.html">Our Story</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Help</h4>
+                <ul>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="#">Shipping Policy</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
