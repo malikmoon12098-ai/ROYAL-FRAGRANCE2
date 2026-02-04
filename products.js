@@ -68,14 +68,17 @@ const defaultProducts = [
     }
 ];
 
-// 2. Load from LocalStorage or Fallback to Defaults
-let products = JSON.parse(localStorage.getItem('rf_products'));
+// 2. Load from LocalStorage or Fallback to Defaults logic
+let productsEncoded = localStorage.getItem('rf_products');
+let products;
 
-if (!products || products.length === 0) {
+if (productsEncoded === null) {
+    // Key doesn't exist (First time load), seed defaults
     products = defaultProducts;
-    // Don't auto-save to localStorage here implies we prefer fresh defaults if user clears data
-    // But for Admin sync, it's better to save it so Admin sees something.
     localStorage.setItem('rf_products', JSON.stringify(products));
+} else {
+    // Key respects user changes (even if empty)
+    products = JSON.parse(productsEncoded);
 }
 
 /* Render Function */
