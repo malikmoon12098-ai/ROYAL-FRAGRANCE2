@@ -77,20 +77,24 @@ function renderProducts(containerId, productList) {
     productList.forEach(product => {
         const card = document.createElement('div');
         card.className = 'product-card fade-in';
+        // Navigate on click logic
+        const openProduct = () => window.location.href = `product.html?id=${product.id}`;
+
         card.innerHTML = `
-            <div class="product-image">
+            <div class="product-image" onclick="window.location.href='product.html?id=${product.id}'" style="cursor:pointer;">
                 <!-- Placeholder Image Logic -->
+                ${product.image && !product.image.includes('path/to') ? `<img src="${product.image}" alt="${product.name}">` : `
                 <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f9f9f9; color:#aaa;">
                    <i class="fa-solid fa-bottle-droplet" style="font-size:3rem; opacity:0.3;"></i>
-                </div>
+                </div>`}
                 <div class="product-actions">
-                    <button class="action-btn" onclick="openQuickView(${product.id})">Quick View</button>
-                    <button class="action-btn" onclick="addToCart(${product.id})">Add to Cart</button>
+                    <button class="action-btn" onclick="event.stopPropagation(); window.location.href='product.html?id=${product.id}'">View Details</button>
+                    <button class="action-btn" onclick="event.stopPropagation(); addToCart(${product.id})">Add to Cart</button>
                 </div>
             </div>
             <div class="product-info">
                 <span class="product-category">${product.category}</span>
-                <h3 class="product-title">${product.name}</h3>
+                <h3 class="product-title" onclick="window.location.href='product.html?id=${product.id}'" style="cursor:pointer;">${product.name}</h3>
                 <p class="product-price">PKR ${product.price.toLocaleString()}</p>
             </div>
         `;

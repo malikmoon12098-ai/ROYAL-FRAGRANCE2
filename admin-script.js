@@ -39,12 +39,10 @@ function loadDashboard() {
     // --- AUTOMATED "HISAB KITAB" LOGIC ---
 
     // 1. Get Data
+    // 1. Get Data
     const products = JSON.parse(localStorage.getItem('rf_products')) || [];
-    // Mock Orders for Demo (Replace with real data later)
-    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [
-        { id: 101, total: 25000, items: [{ id: 1, qty: 1 }, { id: 4, qty: 1 }], status: 'Completed', date: '2023-10-01' },
-        { id: 102, total: 8500, items: [{ id: 2, qty: 1 }], status: 'Pending', date: '2023-10-02' }
-    ];
+    // Get Real Orders
+    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
 
     // 2. Calculate Stock Value (Asset)
     let totalStockValue = 0;
