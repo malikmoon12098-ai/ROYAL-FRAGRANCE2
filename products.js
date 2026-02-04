@@ -1,9 +1,10 @@
-const products = [
+// 1. Initial Data (Defaults)
+const defaultProducts = [
     {
         id: 1,
         name: "Emerald Oud",
         price: 12500,
-        costPrice: 8000, // Added for Profit Calculation
+        costPrice: 8000,
         category: "Unisex",
         stock: 15,
         image: "path/to/img1.jpg",
@@ -66,6 +67,16 @@ const products = [
         description: "Rich amber and leather for the modern gentleman."
     }
 ];
+
+// 2. Load from LocalStorage or Fallback to Defaults
+let products = JSON.parse(localStorage.getItem('rf_products'));
+
+if (!products || products.length === 0) {
+    products = defaultProducts;
+    // Don't auto-save to localStorage here implies we prefer fresh defaults if user clears data
+    // But for Admin sync, it's better to save it so Admin sees something.
+    localStorage.setItem('rf_products', JSON.stringify(products));
+}
 
 /* Render Function */
 function renderProducts(containerId, productList) {
