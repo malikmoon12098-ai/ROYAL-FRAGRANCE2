@@ -26,7 +26,7 @@ function injectCartHTML() {
             <div class="cart-footer">
                 <div class="cart-total">
                     <span>Total</span>
-                    <span id="cart-total-price">$0.00</span>
+                    <span id="cart-total-price">PKR 0.00</span>
                 </div>
                 <a href="checkout.html" class="btn btn-primary checkout-btn">Proceed to Checkout</a>
             </div>
@@ -149,7 +149,7 @@ function updateCartUI() {
                 </div>
                 <div class="cart-item-details">
                     <div class="cart-item-title">${item.name}</div>
-                    <div class="cart-item-price">$${item.price} x ${item.qty || 1}</div>
+                    <div class="cart-item-price">PKR ${item.price} x ${item.qty || 1}</div>
                 </div>
                 <button onclick="removeFromCart(${item.id})" style="background:none; border:none; color:red; cursor:pointer;">&times;</button>
             </div>
@@ -157,7 +157,7 @@ function updateCartUI() {
     });
 
     container.innerHTML = html;
-    if (totalPriceEl) totalPriceEl.textContent = '$' + total.toFixed(2);
+    if (totalPriceEl) totalPriceEl.textContent = 'PKR ' + total.toLocaleString();
 }
 
 // Update DOMContentLoaded to include setup

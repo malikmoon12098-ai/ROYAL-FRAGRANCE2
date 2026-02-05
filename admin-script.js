@@ -495,8 +495,6 @@ function loadAIInsights() {
         }
     }
 
-    const hasData = orders.length > 0;
-
     main.innerHTML = `
         <header class="header">
             <h1>AI Insights & Business Intelligence</h1>
@@ -518,41 +516,131 @@ function loadAIInsights() {
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
-            <!-- Inventory Health -->
-            <div class="table-container" style="padding: 1.5rem;">
-                <h2 style="font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc;"><i class="fa-solid fa-box-open" style="color: #f59e0b;"></i> Inventory Health</h2>
-                <ul style="list-style: none; padding: 0;">
-                    <li style="margin-bottom: 1rem; color: #94a3b8;">Average Product Price: <strong style="color: #fff;">PKR ${Math.round(avgPrice).toLocaleString()}</strong></li>
-                    <li style="margin-bottom: 1rem; color: #94a3b8;">Most Premium Item: <strong style="color: #fff;">${mostExpensive ? mostExpensive.name : 'N/A'}</strong></li>
-                </ul>
-                <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(244, 63, 94, 0.1); border-radius: 8px; border: 1px solid rgba(244, 63, 94, 0.3);">
-                    <h4 style="color: #f43f5e; margin-bottom: 0.5rem;">Restock Recommendations</h4>
-                    <p style="color: #cbd5e1; font-size: 0.9rem;">
-                        ${lowStock.length > 0 ? `Consider restocking: <strong>${lowStock.slice(0, 3).join(', ')}</strong>` : "Inventory levels look healthy."}
-                    </p>
+        <!-- AI Assistant Chatbot -->
+        <div style="margin-top: 2rem; display: grid; grid-template-columns: 1fr; gap: 2rem;">
+            <div class="table-container" style="padding: 0; display: flex; flex-direction: column; height: 500px; background: #0f172a; border: 1px solid #334155;">
+                <div style="padding: 1rem 1.5rem; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-robot" style="color: #6366f1; font-size: 1.5rem;"></i>
+                    <h2 style="font-size: 1.2rem; color: #fff; margin: 0;">Royal AI Assistant (Roman Urdu)</h2>
                 </div>
-            </div>
+                
+                <div id="ai-chat-messages" style="flex-grow: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="align-self: flex-start; background: #1e293b; padding: 0.8rem 1rem; border-radius: 12px 12px 12px 0; color: #cbd5e1; max-width: 80%; line-height: 1.5;">
+                        Asalam-o-Alaikum Admin! Main aapka AI assistant hoon. Aap mujhse business ke bare mein kuch bhi pooch sakte hain Roman Urdu mein. <br><br>
+                        Example: "Iss mahine kitni sale hui?", "Konsa product zyada bika?", ya "Perfume A ka stock kitna hai?"
+                    </div>
+                </div>
 
-            <!-- Marketing Tips -->
-             <div class="table-container" style="padding: 1.5rem;">
-                <h2 style="font-size: 1.2rem; margin-bottom: 1rem; color: #f8fafc;"><i class="fa-solid fa-lightbulb" style="color: #eab308;"></i> Smart Suggestions</h2>
-                <div style="display: flex; gap: 1rem; flex-direction: column;">
-                    ${hasData ? `
-                    <div style="padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border-left: 4px solid #6366f1;">
-                        <strong style="color: #fff; display: block; margin-bottom: 5px;">Bundle Offer Opportunity</strong>
-                        <span style="color: #cbd5e1; font-size: 0.9rem;">Based on sales, consider bundling ${bestCategory} items.</span>
-                    </div>
-                    ` : `
-                     <div style="padding: 1rem; background: rgba(100, 116, 139, 0.1); border-radius: 8px; border-left: 4px solid #64748b;">
-                        <strong style="color: #fff; display: block; margin-bottom: 5px;">Gathering Insights</strong>
-                        <span style="color: #cbd5e1; font-size: 0.9rem;">Once you receive orders, AI will suggest marketing strategies here.</span>
-                    </div>
-                    `}
+                <div style="padding: 1rem; border-top: 1px solid #334155; display: flex; gap: 10px; background: #1e293b;">
+                    <input type="text" id="ai-chat-input" placeholder="Yahan apna sawal likhein..." 
+                           style="flex-grow: 1; padding: 0.8rem 1.2rem; background: #0f172a; border: 1px solid #334155; border-radius: 25px; color: #fff; outline: none;"
+                           onkeypress="if(event.key === 'Enter') sendAdminAIMessage()">
+                    <button onclick="sendAdminAIMessage()" style="background: #6366f1; border: none; width: 45px; height: 45px; border-radius: 50%; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
                 </div>
             </div>
         </div>
     `;
+}
+
+function sendAdminAIMessage() {
+    const input = document.getElementById('ai-chat-input');
+    const container = document.getElementById('ai-chat-messages');
+    const message = input.value.trim();
+    if (!message) return;
+
+    // User message
+    const userMsg = document.createElement('div');
+    userMsg.style.cssText = "align-self: flex-end; background: #6366f1; padding: 0.8rem 1rem; border-radius: 12px 12px 0 12px; color: #fff; max-width: 80%; line-height: 1.5;";
+    userMsg.textContent = message;
+    container.appendChild(userMsg);
+    input.value = "";
+    container.scrollTop = container.scrollHeight;
+
+    // Thinking state
+    const botMsg = document.createElement('div');
+    botMsg.style.cssText = "align-self: flex-start; background: #1e293b; padding: 0.8rem 1rem; border-radius: 12px 12px 12px 0; color: #cbd5e1; max-width: 80%; line-height: 1.5;";
+    botMsg.innerHTML = '<i class="fa-solid fa-ellipsis fa-fade"></i> AI soch raha hai...';
+    container.appendChild(botMsg);
+
+    setTimeout(() => {
+        const response = processAdminAIQuery(message);
+        botMsg.innerHTML = response;
+        container.scrollTop = container.scrollHeight;
+    }, 1000);
+}
+
+function processAdminAIQuery(query) {
+    const q = query.toLowerCase();
+    const products = JSON.parse(localStorage.getItem('rf_products')) || [];
+    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+
+    // --- Sale Logic ---
+    if (q.includes('sale') || q.includes('kitni kamai') || q.includes('paisa')) {
+        let total = 0;
+        let thisMonthTotal = 0;
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+
+        orders.forEach(o => {
+            if (o.status !== 'Cancelled') {
+                total += o.total;
+                const d = new Date(o.date);
+                if (d.getMonth() === thisMonth && d.getFullYear() === thisYear) {
+                    thisMonthTotal += o.total;
+                }
+            }
+        });
+
+        if (q.includes('mahine') || q.includes('month') || q.includes('abhi')) {
+            return `Iss mahine abhi tak total **PKR ${thisMonthTotal.toLocaleString()}** ki sale hui hai. Allah barkat de!`;
+        }
+        return `Abhi tak website par total **PKR ${total.toLocaleString()}** ki sale hui hai.`;
+    }
+
+    // --- Stock / Bacha Logic ---
+    if (q.includes('bacha') || q.includes('stock') || q.includes('item') || q.includes('quantity')) {
+        // Try to find product name in query
+        const found = products.find(p => q.includes(p.name.toLowerCase()));
+        if (found) {
+            return `**${found.name}** ka stock filter-haal **${found.stock}** units bacha hua hai.`;
+        }
+
+        const lowStock = products.filter(p => p.stock < 5);
+        if (lowStock.length > 0) {
+            return `Aapke pas **${lowStock.length}** products ka stock khatam hone wala hai (less than 5). In par nazar rakhein.`;
+        }
+        return "Sab products ka stock filhal sahi lag raha hai. Aap kisi specific product ka naam le kar bhi pooch sakte hain.";
+    }
+
+    // --- Best Selling Logic ---
+    if (q.includes('zyada') || q.includes('best') || q.includes('bikka') || q.includes('top')) {
+        const productSales = {};
+        orders.forEach(o => {
+            if (o.status !== 'Cancelled') {
+                o.items.forEach(i => {
+                    productSales[i.name] = (productSales[i.name] || 0) + i.qty;
+                });
+            }
+        });
+
+        const sorted = Object.entries(productSales).sort((a, b) => b[1] - a[1]);
+        if (sorted.length > 0) {
+            const best = sorted[0];
+            return `Sab se zyada bikanay wala product **${best[0]}** hai, jis ke **${best[1]}** units sale hue hain.`;
+        }
+        return "Abhi tak koi product sale nahi hua, is liye comparison mushkil hai.";
+    }
+
+    // --- Orders Count ---
+    if (q.includes('order') || q.includes('customer')) {
+        const pending = orders.filter(o => o.status === 'Pending').length;
+        return `Pass abhi total **${orders.length}** orders hain, jin mein se **${pending}** abhi pending hain. Inhein jald jald check karein!`;
+    }
+
+    return "Maaf kijiye, mujhe samajh nahi aaya. Aap mujhse sale, stock, ya best products ke bare mein Roman Urdu mein pooch sakte hain. <br><br> (Tip: Product ka sahi naam likhein)";
 }
 
 function deleteOrder(orderId) {
