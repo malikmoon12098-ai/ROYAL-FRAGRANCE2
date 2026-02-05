@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmed | ROYAL FRAGRANCE</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .confirmation-container {
+            max-width: 700px;
+            margin: 4rem auto;
+            text-align: center;
+            padding: 3rem 2rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.1));
+            border-radius: 16px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .success-icon {
+            font-size: 5rem;
+            color: #10b981;
+            margin-bottom: 1.5rem;
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .confirmation-title {
+            font-family: var(--font-heading);
+            font-size: 2.5rem;
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .confirmation-subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+
+        .order-details {
+            background: rgba(30, 41, 59, 0.7);
+            padding: 2rem;
+            border-radius: 12px;
+            margin: 2rem 0;
+            text-align: left;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 1rem;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .total-row {
+            font-size: 1.3rem;
+            color: #10b981;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .confirmation-container {
+                margin: 2rem 1rem;
+                padding: 2rem 1rem;
+            }
+
+            .confirmation-title {
+                font-size: 2rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .action-buttons .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="main-header">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">ROYAL FRAGRANCE</a>
+        </div>
+    </header>
+
+    <div class="container confirmation-container">
+        <div class="success-icon">✅</div>
+        <h1 class="confirmation-title">Your Order is Confirmed!</h1>
+        <p class="confirmation-subtitle">Thank you for your purchase. We'll process your order shortly.</p>
+
+        <div class="order-details" id="order-details">
+            <!-- Order details will be injected here -->
+        </div>
+
+        <div class="action-buttons">
+            <a href="shop.html" class="btn btn-secondary">Continue Shopping</a>
+            <a href="index.html" class="btn btn-primary">Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        // Get order ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('id');
+
+        if (orderId) {
+            // Load order from localStorage
+            const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+            const order = orders.find(o => o.id == orderId);
+
+            if (order) {
+                const detailsContainer = document.getElementById('order-details');
+                detailsContainer.innerHTML = `
+                    <div class="detail-row">
+                        <span class="detail-label">Order ID:</span>
+                        <span class="detail-value">#${order.id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value">${order.date}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Customer Name:</span>
+                        <span class="detail-value">${order.customer.name}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Email:</span>
+                        <span class="detail-value">${order.customer.email}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Phone:</span>
+                        <span class="detail-value">${order.customer.phone}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Delivery Address:</span>
+                        <span class="detail-value">${order.customer.address}, ${order.customer.city}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Items:</span>
+                        <span class="detail-value">${order.items.map(i => `${i.name} (x${i.qty})`).join(', ')}</span>
+                    </div>
+                    <div class="detail-row total-row">
+                        <span class="detail-label">Total Amount:</span>
+                        <span class="detail-value">PKR ${order.total.toLocaleString()}</span>
+                    </div>
+                `;
+            } else {
+                document.getElementById('order-details').innerHTML = '<p style="color:#f87171;">Order not found.</p>';
+            }
+        } else {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>

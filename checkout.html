@@ -213,15 +213,14 @@
             console.log('✅ Order saved successfully:', newOrder);
             console.log('📦 Total orders in storage:', orders.length);
 
-            // 5. UI Feedback & Redirect
+            // 5. UI Feedback & Redirect to Confirmation Page
             const btn = document.querySelector('button[type="submit"]');
             btn.textContent = 'Processing...';
             btn.disabled = true;
 
             setTimeout(() => {
-                alert(`✅ Your Order is Confirmed!\n\nOrder ID: #${newOrder.id}\nTotal: PKR ${totalAmount.toLocaleString()}\n\nThank you for your order!`);
                 localStorage.removeItem('rf_cart'); // Clear cart
-                window.location.href = 'index.html';
+                window.location.href = `order-confirmed.html?id=${newOrder.id}`;
             }, 1000);
         }
     </script>

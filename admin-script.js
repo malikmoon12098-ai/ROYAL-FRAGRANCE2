@@ -244,14 +244,24 @@ function loadOrders() {
                                 <strong>#${order.id}</strong>
                                 <span style="font-size:0.8rem; color:#ccc;">${order.date}</span>
                             </div>
-                            <div style="margin-bottom:0.5rem; font-size:0.9rem;">
-                                <strong>Customer:</strong> ${order.customer ? order.customer.name : 'Guest'}<br>
-                                <strong>Total:</strong> PKR ${order.total.toLocaleString()}
+                            <div style="margin-bottom:0.8rem; font-size:0.9rem; line-height:1.6;">
+                                <strong style="color:#6366f1;">Customer:</strong> ${order.customer ? order.customer.name : 'Guest'}<br>
+                                <strong style="color:#10b981;">Total:</strong> PKR ${order.total.toLocaleString()}
                             </div>
                             <details style="margin-bottom:0.8rem; font-size:0.85rem; color:#94a3b8;">
-                                <summary style="cursor:pointer;">View Items</summary>
+                                <summary style="cursor:pointer; font-weight:600; color:#fff; margin-bottom:0.5rem;">📋 Customer Details</summary>
+                                <div style="margin-top:0.5rem; padding:0.5rem; background:rgba(0,0,0,0.2); border-radius:4px; line-height:1.8;">
+                                    ${order.customer ? `
+                                        <div><strong>📧 Email:</strong> ${order.customer.email}</div>
+                                        <div><strong>📱 Phone:</strong> ${order.customer.phone}</div>
+                                        <div><strong>📍 Address:</strong> ${order.customer.address}, ${order.customer.city}</div>
+                                    ` : 'No customer details available'}
+                                </div>
+                            </details>
+                            <details style="margin-bottom:0.8rem; font-size:0.85rem; color:#94a3b8;">
+                                <summary style="cursor:pointer; font-weight:600; color:#fff;">🛍️ View Items</summary>
                                 <ul style="margin-top:0.5rem; padding-left:1rem;">
-                                    ${order.items.map(i => `<li>${i.name} (x${i.qty})</li>`).join('')}
+                                    ${order.items.map(i => `<li>${i.name} (x${i.qty}) - PKR ${(i.price * i.qty).toLocaleString()}</li>`).join('')}
                                 </ul>
                             </details>
                             <button class="btn-primary" style="width:100%; background: #10b981;" onclick="updateOrderStatus(${order.id}, 'Completed')">
