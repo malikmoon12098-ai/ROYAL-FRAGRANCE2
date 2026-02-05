@@ -20,6 +20,8 @@ function switchView(viewName) {
     if (viewName === 'dashboard') loadDashboard();
     if (viewName === 'products') loadProducts();
     if (viewName === 'orders') loadOrders();
+    if (viewName === 'analytics') loadAnalytics();
+    if (viewName === 'hisab-kitab') loadHisabKitab();
     if (viewName === 'customers') loadCustomers();
     if (viewName === 'ai-insights') loadAIInsights();
 }
@@ -282,9 +284,12 @@ function loadOrders() {
                                 <strong>#${order.id}</strong>
                                 <span class="badge completed">Completed</span>
                             </div>
-                             <div style="font-size:0.9rem;">
+                             <div style="font-size:0.9rem; margin-bottom:0.8rem;">
                                 ${order.customer ? order.customer.name : 'Guest'} - PKR ${order.total.toLocaleString()}
                             </div>
+                            <button class="btn-primary" style="width:100%; background: #ef4444; font-size:0.85rem;" onclick="deleteOrder(${order.id})">
+                                <i class="fa-solid fa-trash"></i> Delete Order
+                            </button>
                         </div>
                     `).join('') : '<p style="color:#64748b;">No completed orders yet.</p>'}
                 </div>
@@ -605,4 +610,209 @@ function loadAIInsights() {
             </div>
         </div>
     `;
+}
+
+function deleteOrder(orderId) {
+    if (!confirm('Are you sure you want to delete this order?')) return;
+
+    let orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    orders = orders.filter(o => o.id !== orderId);
+    localStorage.setItem('rf_orders', JSON.stringify(orders));
+    loadOrders();
+}
+
+function loadHisabKitab() {
+    const main = document.getElementById('main-content');
+    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    const products = JSON.parse(localStorage.getItem('rf_products')) || [];
+
+    // Aggregation Logic
+    const monthlyData = {};
+    const yearlyData = {};
+    const productSales = {};
+
+    orders.forEach(order => {
+        if (order.status === 'Cancelled') return;
+
+        const date = new Date(order.date);
+        const monthYear = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+        const year = date.getFullYear().toString();
+
+        // Calculate Cost
+        let orderCost = 0;
+        order.items.forEach(item => {
+            const product = products.find(p => p.id === item.id);
+            const cost = product ? (product.costPrice || (product.price * 0.6)) : 0;
+            orderCost += (cost * item.qty);
+
+            // Track product demand
+            productSales[item.name] = (productSales[item.name] || 0) + item.qty;
+        });
+
+        const profit = order.total - orderCost;
+
+        // Monthly aggregation
+        if (!monthlyData[monthYear]) {
+            monthlyData[monthYear] = { revenue: 0, profit: 0, cost: 0 };
+        }
+        monthlyData[monthYear].revenue += order.total;
+        monthlyData[monthYear].profit += profit;
+        monthlyData[monthYear].cost += orderCost;
+
+        // Yearly aggregation
+        if (!yearlyData[year]) {
+            yearlyData[year] = { revenue: 0, profit: 0, cost: 0 };
+        }
+        yearlyData[year].revenue += order.total;
+        yearlyData[year].profit += profit;
+        yearlyData[year].cost += orderCost;
+    });
+
+    // Prepare chart data
+    const monthLabels = Object.keys(monthlyData);
+    const monthRevenue = monthLabels.map(l => monthlyData[l].revenue);
+    const monthProfit = monthLabels.map(l => monthlyData[l].profit);
+
+    const yearLabels = Object.keys(yearlyData);
+    const yearProfit = yearLabels.map(l => yearlyData[l].profit);
+
+    // Top Products
+    const topProducts = Object.entries(productSales)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    main.innerHTML = `
+        <header class="header">
+            <h1>Hisab Kitab (Financial Reports)</h1>
+            <div class="user-profile"><i class="fa-solid fa-user-circle"></i> Admin</div>
+        </header>
+
+        <section class="card-grid">
+            <div class="stat-card">
+                <h3>Total Revenue</h3>
+                <div class="value">PKR ${Object.values(yearlyData).reduce((a, b) => a + b.revenue, 0).toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="border-top-color: #10B981;">
+                <h3>Total Lifetime Profit</h3>
+                <div class="value">PKR ${Object.values(yearlyData).reduce((a, b) => a + b.profit, 0).toLocaleString()}</div>
+            </div>
+        </section>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2rem; margin-top: 2rem;">
+            <!-- Monthly Trends Chart -->
+            <div class="table-container" style="padding: 1.5rem;">
+                <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-chart-line"></i> Monthly Sales & Profit</h3>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+
+            <!-- Yearly Comparison Chart -->
+            <div class="table-container" style="padding: 1.5rem;">
+                <h3 style="margin-bottom: 1rem;"><i class="fa-solid fa-chart-bar"></i> Yearly Profit Comparison</h3>
+                <canvas id="yearlyChart"></canvas>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+            <!-- Best Selling Products -->
+            <div class="table-container" style="padding: 1.5rem;">
+                <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-fire"></i> Best Selling Products</h3>
+                <table style="width: 100%;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 1px solid #334155;">
+                            <th style="padding: 10px;">Product Name</th>
+                            <th style="padding: 10px;">Units Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${topProducts.map(p => `
+                            <tr style="border-bottom: 1px solid #1e293b;">
+                                <td style="padding: 10px;">${p[0]}</td>
+                                <td style="padding: 10px; font-weight: bold; color: #10B981;">${p[1]} Units</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Monthly Breakdown Tables -->
+            <div class="table-container" style="padding: 1.5rem;">
+                <h3 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-calendar-days"></i> Monthly Summary</h3>
+                 <div style="max-height: 300px; overflow-y: auto;">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr style="text-align: left; border-bottom: 1px solid #334155;">
+                                <th style="padding: 10px;">Month</th>
+                                <th style="padding: 10px;">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${monthLabels.reverse().map(l => `
+                                <tr style="border-bottom: 1px solid #1e293b;">
+                                    <td style="padding: 10px;">${l}</td>
+                                    <td style="padding: 10px; font-weight: bold; color: #6366f1;">PKR ${monthlyData[l].profit.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                 </div>
+            </div>
+        </div>
+    `;
+
+    // Initialize Charts
+    const ctxTitle = { color: '#fff' };
+
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: monthLabels,
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: monthRevenue,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Profit',
+                    data: monthProfit,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#fff' } } },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('yearlyChart'), {
+        type: 'bar',
+        data: {
+            labels: yearLabels,
+            datasets: [{
+                label: 'Yearly Profit',
+                data: yearProfit,
+                backgroundColor: '#6366f1',
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: '#fff' } } },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+            }
+        }
+    });
 }
