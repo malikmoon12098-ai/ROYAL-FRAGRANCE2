@@ -338,6 +338,7 @@ function openAddModal() {
     document.getElementById('modal-title').textContent = "Add New Product";
     document.getElementById('product-form').reset();
     document.getElementById('product-id').value = ""; // Clear ID for new add
+    document.getElementById('product-brand').value = ""; // Clear Brand
     document.getElementById('product-image').value = ""; // Clear Image
     document.getElementById('product-category').value = "Unisex"; // Default
     openModal('product-modal');
@@ -351,6 +352,7 @@ function openEditModal(id) {
         document.getElementById('modal-title').textContent = "Edit Product";
         document.getElementById('product-id').value = product.id;
         document.getElementById('product-name').value = product.name;
+        document.getElementById('product-brand').value = product.brand || ""; // Load Brand
         document.getElementById('product-category').value = product.category || "Unisex"; // Load Category
         document.getElementById('product-price').value = product.price;
         document.getElementById('product-cost').value = product.costPrice || 0;
@@ -366,6 +368,7 @@ function handleProductSubmit(e) {
     // Get Values
     const id = document.getElementById('product-id').value;
     const name = document.getElementById('product-name').value;
+    const brand = document.getElementById('product-brand').value.trim(); // Get Brand
     const category = document.getElementById('product-category').value; // Get Category
     const price = parseFloat(document.getElementById('product-price').value);
     const costPrice = parseFloat(document.getElementById('product-cost').value) || 0;
@@ -378,12 +381,12 @@ function handleProductSubmit(e) {
         // EDIT MODE
         const index = products.findIndex(p => p.id == id);
         if (index > -1) {
-            products[index] = { id: parseInt(id), name, category, price, costPrice, image, stock };
+            products[index] = { id: parseInt(id), name, brand, category, price, costPrice, image, stock };
         }
     } else {
         // ADD MODE
         const newId = Date.now();
-        products.push({ id: newId, name, category, price, costPrice, image, stock });
+        products.push({ id: newId, name, brand, category, price, costPrice, image, stock });
     }
 
     localStorage.setItem('rf_products', JSON.stringify(products));

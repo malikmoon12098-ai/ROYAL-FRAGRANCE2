@@ -155,8 +155,9 @@
                     </div>
                     <div class="pdp-details">
                         <h1>${product.name}</h1>
+                        ${product.brand ? `<p style="font-size: 1.1rem; color: #6366f1; font-weight: 600; margin-bottom: 1rem;">by ${product.brand}</p>` : ''}
                         <p class="pdp-price">PKR ${product.price.toLocaleString()}</p>
-                        <p class="pdp-description">${product.description}</p>
+                        <p class="pdp-description">${product.description || 'A luxurious fragrance experience.'}</p>
                         
                         <div class="fragrance-notes">
                             <p><span class="note-category">Top Notes:</span> Bergamot, Lemon, Spice</p>
