@@ -26,8 +26,65 @@ function switchView(viewName) {
     if (viewName === 'contact-settings') loadContactSettings();
 }
 
-// Update Global Analytics
-// (This logic should be part of a function if needed, but here it's causing syntax errors)
+// Update Global Analytics (Placeholder for potential future use)
+
+function loadAnalytics() {
+    const main = document.getElementById('main-content');
+    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    const products = JSON.parse(localStorage.getItem('rf_products')) || [];
+
+    // Calculate basic stats
+    const totalRevenue = orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + o.total, 0);
+    const totalOrders = orders.length;
+    const lowStockCount = products.filter(p => p.stock < 10).length;
+    const totalStockValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+
+    // Calculate Net Profit (using 60% fallback for cost if not set)
+    const netProfit = orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => {
+        let orderCost = 0;
+        o.items.forEach(item => {
+            const product = products.find(p => p.id === item.id);
+            const cost = product ? (product.costPrice || (product.price * 0.6)) : 0;
+            orderCost += (cost * item.qty);
+        });
+        return sum + (o.total - orderCost);
+    }, 0);
+
+    main.innerHTML = `
+        <header class="header">
+            <h1>Analytics Overview</h1>
+            <div class="user-profile"><i class="fa-solid fa-user-circle"></i> Admin</div>
+        </header>
+
+        <section class="card-grid">
+            <div class="stat-card">
+                <h3>Total Revenue</h3>
+                <div class="value">PKR ${totalRevenue.toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="border-top-color: #10B981;">
+                <h3>Total Profit</h3>
+                <div class="value">PKR ${netProfit.toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="border-top-color: #F59E0B;">
+                <h3>Total Orders</h3>
+                <div class="value">${totalOrders}</div>
+            </div>
+            <div class="stat-card" style="border-top-color: #EF4444;">
+                <h3>Low Stock Items</h3>
+                <div class="value">${lowStockCount}</div>
+            </div>
+        </section>
+
+        <div style="margin-top: 2rem;">
+            <div class="table-container" style="padding: 2rem; border: 1px dashed #334155; text-align: center;">
+                <p style="color: #94a3b8; font-size: 1.1rem;">
+                    Check <strong>Hisab Kitab</strong> for detailed financial charts and monthly reports.
+                </p>
+                <button class="btn-primary" style="margin-top: 1rem;" onclick="switchView('hisab-kitab')">Go to Hisab Kitab</button>
+            </div>
+        </div>
+    `;
+}
 
 function loadProducts() {
     const main = document.getElementById('main-content');
