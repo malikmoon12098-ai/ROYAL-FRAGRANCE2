@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Order | ROYAL FRAGRANCE</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .track-container {
+            max-width: 700px;
+            margin: 4rem auto;
+            padding: 3rem 2rem;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .track-title {
+            font-family: var(--font-heading);
+            font-size: 2.5rem;
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .track-subtitle {
+            font-size: 1.1rem;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+
+        .search-box {
+            position: relative;
+            max-width: 500px;
+            margin: 0 auto 3rem auto;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 1.2rem 1rem 1.2rem 3.5rem;
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-radius: 50px;
+            color: #fff;
+            font-size: 1.1rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .order-result-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: left;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .result-label {
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .result-value {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .no-result {
+            color: #f87171;
+            margin-top: 2rem;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="main-header">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">ROYAL FRAGRANCE</a>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="shop.html">Shop</a></li>
+                    <li><a href="track-order.html" class="active">Track Order</a></li>
+                    <li><a href="story.html">Our Story</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="track-container">
+            <h1 class="track-title">Track Your Order</h1>
+            <p class="track-subtitle">Enter your Phone Number or Email to view your pending orders.</p>
+
+            <div class="search-box">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="track-input" placeholder="03XXXXXXXXX or email@example.com"
+                    oninput="trackOrder()">
+            </div>
+
+            <div id="results-container">
+                <!-- Results will be injected here -->
+            </div>
+
+            <div id="no-result" class="no-result">
+                <i class="fa-solid fa-circle-exclamation"
+                    style="font-size: 2rem; margin-bottom: 1rem; display: block;"></i>
+                No pending orders found for this contact. Orders disappear from here once they are completed/shipped.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function trackOrder() {
+            const input = document.getElementById('track-input').value.trim().toLowerCase();
+            const resultsContainer = document.getElementById('results-container');
+            const noResult = document.getElementById('no-result');
+
+            if (input.length < 5) {
+                resultsContainer.innerHTML = '';
+                noResult.style.display = 'none';
+                return;
+            }
+
+            const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+
+            // Filter: Only Pending and matching Phone or Email
+            const matchingOrders = orders.filter(o =>
+                o.status === 'Pending' &&
+                (o.customer.phone.toLowerCase().includes(input) || o.customer.email.toLowerCase().includes(input))
+            );
+
+            if (matchingOrders.length > 0) {
+                noResult.style.display = 'none';
+                resultsContainer.innerHTML = matchingOrders.map(order => `
+                    <div class="order-result-card" style="display:block;">
+                        <div class="status-badge status-pending">Status: Pending</div>
+                        <div class="result-row">
+                            <span class="result-label">Order ID:</span>
+                            <span class="result-value">#${order.id}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Date:</span>
+                            <span class="result-value">${order.date}</span>
+                        </div>
+                        <div class="result-row">
+                            <span class="result-label">Items:</span>
+                            <span class="result-value">${order.items.map(i => `${i.name} (x${i.qty})`).join(', ')}</span>
+                        </div>
+                        <div class="result-row" style="border-bottom:none; margin-top:1rem; font-size:1.2rem;">
+                            <span class="result-label">Total Amount:</span>
+                            <span class="result-value" style="color:#10b981;">PKR ${order.total.toLocaleString()}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                resultsContainer.innerHTML = '';
+                noResult.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+
+</html>

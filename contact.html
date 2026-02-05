@@ -33,6 +33,7 @@
                 <ul>
                     <li><a href="index.html">Home</a></li>
                     <li><a href="shop.html">Shop</a></li>
+                    <li><a href="track-order.html">Track Order</a></li>
                     <li><a href="story.html">Our Story</a></li>
                     <li><a href="contact.html" class="active">Contact</a></li>
                 </ul>
@@ -65,17 +66,17 @@
 
                 <div style="margin-bottom: 1.5rem;">
                     <strong style="display:block; margin-bottom:0.5rem; color:var(--color-primary);">Visit Us</strong>
-                    <p>123 Luxury Lane, Fashion District<br>Paris, France 75001</p>
+                    <p id="display-address">123 Luxury Lane, Fashion District<br>Paris, France 75001</p>
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
                     <strong style="display:block; margin-bottom:0.5rem; color:var(--color-primary);">Email Us</strong>
-                    <p>concierge@royalfragrance.com</p>
+                    <p id="display-email">concierge@royalfragrance.com</p>
                 </div>
 
                 <div style="margin-bottom: 1.5rem;">
                     <strong style="display:block; margin-bottom:0.5rem; color:var(--color-primary);">Call Us</strong>
-                    <p>+33 1 23 45 67 89</p>
+                    <p id="display-phone">+33 1 23 45 67 89</p>
                 </div>
             </div>
 
@@ -131,6 +132,16 @@
     </footer>
 
     <script src="script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const contactInfo = JSON.parse(localStorage.getItem('rf_contact_info'));
+            if (contactInfo) {
+                if (contactInfo.address) document.getElementById('display-address').innerText = contactInfo.address;
+                if (contactInfo.email) document.getElementById('display-email').innerText = contactInfo.email;
+                if (contactInfo.phone) document.getElementById('display-phone').innerText = contactInfo.phone;
+            }
+        });
+    </script>
 </body>
 
 </html>

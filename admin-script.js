@@ -1,7 +1,7 @@
 /* Admin Dashboard Logic */
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadDashboard();
+    loadProducts();
     setupNavigation();
 });
 
@@ -17,131 +17,17 @@ function setupNavigation() {
 }
 
 function switchView(viewName) {
-    if (viewName === 'dashboard') loadDashboard();
     if (viewName === 'products') loadProducts();
     if (viewName === 'orders') loadOrders();
     if (viewName === 'analytics') loadAnalytics();
     if (viewName === 'hisab-kitab') loadHisabKitab();
     if (viewName === 'customers') loadCustomers();
     if (viewName === 'ai-insights') loadAIInsights();
+    if (viewName === 'contact-settings') loadContactSettings();
 }
 
-// Mock Data for Analytics (Calculated dynamically now)
-let analytics = {
-    sales: 0,
-    orders: 0,
-    profit: 0,
-    stockValue: 0,
-    lowStock: 0
-};
-
-function loadDashboard() {
-    const main = document.getElementById('main-content');
-
-    // --- AUTOMATED "HISAB KITAB" LOGIC ---
-
-    // 1. Get Data
-    // 1. Get Data
-    const products = JSON.parse(localStorage.getItem('rf_products')) || [];
-    // Get Real Orders
-    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
-
-    // 2. Calculate Stock Value (Asset)
-    let totalStockValue = 0;
-    let lowStockCount = 0;
-
-    products.forEach(p => {
-        const cost = p.costPrice || (p.price * 0.6); // Fallback to 60% if no cost set
-        totalStockValue += (cost * p.stock);
-
-        if (p.stock <= 5) lowStockCount++;
-    });
-
-    // 3. Calculate Revenue & Profit
-    let totalRevenue = 0;
-    let totalCost = 0;
-    let totalOrders = orders.length;
-
-    orders.forEach(order => {
-        if (order.status !== 'Cancelled') {
-            totalRevenue += order.total;
-
-            // Calculate Cost for this order
-            order.items.forEach(item => {
-                const product = products.find(p => p.id === item.id);
-                if (product) {
-                    const cost = product.costPrice || (product.price * 0.6);
-                    totalCost += (cost * item.qty);
-                }
-            });
-        }
-    });
-
-    let netProfit = totalRevenue - totalCost;
-
-    // Update Global Analytics
-    analytics.sales = totalRevenue;
-    analytics.profit = netProfit;
-    analytics.stockValue = totalStockValue;
-    analytics.orders = totalOrders;
-    analytics.lowStock = lowStockCount;
-
-    // Render Dashboard
-    main.innerHTML = `
-        <header class="header">
-            <h1>Dashboard Overview</h1>
-            <div class="user-profile"><i class="fa-solid fa-user-circle"></i> Admin</div>
-        </header>
-
-        <!-- Financial Overview (Hisab Kitab) -->
-        <section class="card-grid">
-            <div class="stat-card">
-                <h3>Total Revenue</h3>
-                <div class="value">PKR ${analytics.sales.toLocaleString()}</div>
-            </div>
-            <div class="stat-card" style="border-top-color: #10B981;"> <!-- Emerald Green -->
-                <h3>Net Profit</h3>
-                <div class="value">PKR ${analytics.profit.toLocaleString()}</div>
-                <small style="color: #10B981; font-weight:bold;">Cash in Hand</small>
-            </div>
-            <div class="stat-card" style="border-top-color: #3B82F6;"> <!-- Blue -->
-                <h3>Stock Value</h3>
-                <div class="value">PKR ${analytics.stockValue.toLocaleString()}</div>
-                <small style="color: #64748B;">Assets Inventory</small>
-            </div>
-             <div class="stat-card" style="border-top-color: orange;">
-                <h3>Low Stock Alerts</h3>
-                <div class="value">${analytics.lowStock}</div>
-            </div>
-        </section>
-
-        <section class="recent-orders">
-            <h2>Recent Orders</h2>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Order ID</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${orders.map(order => `
-                            <tr>
-                                <td>#${order.id}</td>
-                                <td>${order.date}</td>
-                                <td>PKR ${order.total.toLocaleString()}</td>
-                                <td><span class="badge ${order.status.toLowerCase()}">${order.status}</span></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    `;
-}
+// Update Global Analytics
+// (This logic should be part of a function if needed, but here it's causing syntax errors)
 
 function loadProducts() {
     const main = document.getElementById('main-content');
@@ -769,17 +655,17 @@ function loadHisabKitab() {
             datasets: [
                 {
                     label: 'Revenue',
-                    data: monthRevenue,
                     borderColor: '#6366f1',
                     backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    data: monthRevenue,
                     fill: true,
                     tension: 0.4
                 },
                 {
                     label: 'Profit',
-                    data: monthProfit,
                     borderColor: '#10B981',
                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    data: monthProfit,
                     fill: true,
                     tension: 0.4
                 }
@@ -815,4 +701,59 @@ function loadHisabKitab() {
             }
         }
     });
+}
+
+// --- CONTACT SETTINGS LOGIC ---
+function loadContactSettings() {
+    const main = document.getElementById('main-content');
+    const contactInfo = JSON.parse(localStorage.getItem('rf_contact_info')) || {
+        address: '123 Luxury Lane, Fashion District, Paris, France 75001',
+        email: 'concierge@royalfragrance.com',
+        phone: '+33 1 23 45 67 89'
+    };
+
+    main.innerHTML = `
+        <header class="header">
+            <h1>Contact Settings</h1>
+            <div class="user-profile"><i class="fa-solid fa-user-circle"></i> Admin</div>
+        </header>
+
+        <section class="card" style="max-width: 600px; margin-top: 2rem; padding: 2rem; background: #1e293b; border: 1px solid #334155;">
+            <h3 style="margin-bottom: 2rem; color: #6366f1;"><i class="fa-solid fa-edit"></i> Update Contact Details</h3>
+            
+            <form id="contact-settings-form" onsubmit="saveContactInfo(event)">
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display:block; margin-bottom:0.5rem; color:#94a3b8;">Store Address</label>
+                    <textarea id="contact-address" style="width:100%; padding:0.8rem; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff; font-family:inherit;" rows="3" required>${contactInfo.address}</textarea>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label style="display:block; margin-bottom:0.5rem; color:#94a3b8;">Public Email</label>
+                    <input type="email" id="contact-email" value="${contactInfo.email}" style="width:100%; padding:0.8rem; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;" required>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 2rem;">
+                    <label style="display:block; margin-bottom:0.5rem; color:#94a3b8;">Phone Number</label>
+                    <input type="text" id="contact-phone" value="${contactInfo.phone}" style="width:100%; padding:0.8rem; background:#0f172a; border:1px solid #334155; border-radius:8px; color:#fff;" required>
+                </div>
+                
+                <button type="submit" class="btn-primary" style="width:100%; padding:1rem; font-weight:700;">
+                    <i class="fa-solid fa-save"></i> Save Contact Details
+                </button>
+            </form>
+        </section>
+    `;
+}
+
+function saveContactInfo(event) {
+    event.preventDefault();
+
+    const contactInfo = {
+        address: document.getElementById('contact-address').value,
+        email: document.getElementById('contact-email').value,
+        phone: document.getElementById('contact-phone').value
+    };
+
+    localStorage.setItem('rf_contact_info', JSON.stringify(contactInfo));
+    alert('Contact information updated successfully! Changes are now live on the website.');
 }
