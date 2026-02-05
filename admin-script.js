@@ -369,7 +369,7 @@ function handleProductSubmit(e) {
     const category = document.getElementById('product-category').value; // Get Category
     const price = parseFloat(document.getElementById('product-price').value);
     const costPrice = parseFloat(document.getElementById('product-cost').value) || 0;
-    const image = document.getElementById('product-image').value || "path/to/default.jpg";
+    const image = document.getElementById('product-image').value.trim() || "";
     const stock = parseInt(document.getElementById('product-stock').value);
 
     let products = JSON.parse(localStorage.getItem('rf_products')) || [];

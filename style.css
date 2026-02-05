@@ -714,12 +714,61 @@ footer {
     letter-spacing: 0.02em;
 }
 
-/* Responsive */
+/* Responsive Design - Mobile First */
+
+/* Tablet Devices (768px - 1024px) */
+@media (max-width: 1024px) {
+    .container {
+        padding: 0 1.5rem;
+    }
+
+    .product-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+    }
+
+    .hero-content h1 {
+        font-size: 3.5rem;
+    }
+
+    .section-header h2 {
+        font-size: 2rem;
+    }
+}
+
+/* Mobile Devices (max-width: 768px) */
 @media (max-width: 768px) {
 
+    /* Container & Spacing */
+    .container {
+        padding: 0 1rem;
+    }
+
+    .section {
+        padding: 3rem 0;
+    }
+
+    /* Navigation */
+    .main-header {
+        height: 60px;
+    }
+
+    .logo {
+        font-size: 1.1rem;
+    }
+
     .main-nav,
-    .nav-icons {
+    .nav-icons .search-btn {
         display: none;
+    }
+
+    .nav-icons {
+        display: flex;
+        align-items: center;
+    }
+
+    .nav-icons .cart-btn {
+        margin-left: 0;
     }
 
     .menu-toggle {
@@ -728,14 +777,259 @@ footer {
         border: none;
         font-size: 1.5rem;
         color: #fff;
+        cursor: pointer;
+    }
+
+    /* Hero Section */
+    .hero {
+        height: 70vh;
+        padding-top: 60px;
+    }
+
+    .hero-content h1 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .hero-content p {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 0 1rem;
+    }
+
+    .hero::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.8rem 1.8rem;
+        font-size: 0.9rem;
+    }
+
+    /* Section Headers */
+    .section-header {
+        margin-bottom: 2rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.8rem;
+    }
+
+    .section-header p {
+        font-size: 0.95rem;
+    }
+
+    /* Product Grid */
+    .product-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+
+    .product-card {
+        border-radius: 12px;
+    }
+
+    .product-image {
+        height: 200px;
+    }
+
+    .product-info {
+        padding: 1rem;
+    }
+
+    .product-category {
+        font-size: 0.7rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .product-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .product-price {
+        font-size: 0.9rem;
+    }
+
+    /* Product Actions - Always Visible on Mobile */
+    .product-actions {
+        opacity: 1;
+        transform: translateY(0);
+        padding: 1rem;
+        gap: 0.5rem;
+        flex-direction: column;
+    }
+
+    .action-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+        width: 100%;
+    }
+
+    /* Cart Sidebar */
+    .cart-sidebar {
+        width: 100%;
+        right: -100%;
+        padding: 1.5rem;
+    }
+
+    .cart-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .cart-item {
+        gap: 0.8rem;
+    }
+
+    .cart-item-title {
+        font-size: 0.9rem;
+    }
+
+    .cart-total {
+        font-size: 1.1rem;
+    }
+
+    /* Chat Widget */
+    .chat-widget-btn {
+        width: 50px;
+        height: 50px;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        font-size: 1.5rem;
+    }
+
+    .chat-window {
+        width: calc(100% - 2rem);
+        height: 500px;
+        right: 1rem;
+        bottom: 5rem;
+    }
+
+    .chat-header {
+        padding: 1rem;
+    }
+
+    .chat-messages {
+        padding: 1rem;
+    }
+
+    /* Footer */
+    footer {
+        padding: 3rem 0 1.5rem;
+        margin-top: 3rem;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .footer-col h4 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .footer-col ul li {
+        margin-bottom: 0.6rem;
+    }
+
+    .footer-col ul a {
+        font-size: 0.85rem;
+    }
+
+    /* Top Bar */
+    .top-bar {
+        font-size: 0.75rem;
+        padding: 0.5rem;
+    }
+}
+
+/* Small Mobile Devices (max-width: 480px) */
+@media (max-width: 480px) {
+
+    /* Hero */
+    .hero-content h1 {
+        font-size: 1.75rem;
+    }
+
+    .hero-content p {
+        font-size: 0.9rem;
+    }
+
+    /* Product Grid - Single Column for Very Small Screens */
+    .product-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .product-image {
+        height: 250px;
+    }
+
+    /* Section Headers */
+    .section-header h2 {
+        font-size: 1.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.7rem 1.5rem;
+        font-size: 0.85rem;
+    }
+
+    /* Logo */
+    .logo {
+        font-size: 1rem;
+    }
+
+    /* Cart */
+    .cart-sidebar {
+        padding: 1rem;
+    }
+
+    /* Chat Window */
+    .chat-window {
+        width: calc(100% - 1rem);
+        right: 0.5rem;
+        bottom: 4.5rem;
+    }
+}
+
+/* Landscape Mobile Orientation */
+@media (max-width: 768px) and (orientation: landscape) {
+    .hero {
+        height: 100vh;
     }
 
     .hero-content h1 {
         font-size: 2.5rem;
     }
+}
 
-    .cart-sidebar {
-        width: 100%;
-        right: -100%;
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+
+    /* Make all interactive elements larger for touch */
+    .btn {
+        min-height: 44px;
+        padding: 0.9rem 2rem;
+    }
+
+    .action-btn {
+        min-height: 40px;
+    }
+
+    .nav-icons button {
+        padding: 0.5rem;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Always show product actions on touch devices */
+    .product-actions {
+        opacity: 1;
+        transform: translateY(0);
     }
 }

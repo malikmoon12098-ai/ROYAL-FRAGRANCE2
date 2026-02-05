@@ -151,7 +151,7 @@
                 const container = document.getElementById('product-detail');
                 container.innerHTML = `
                     <div class="pdp-image-gallery">
-                         <i class="fa-solid fa-bottle-droplet" style="font-size:5rem; color:#ccc;"></i>
+                         ${product.image && product.image.trim() !== '' && !product.image.includes('path/to') ? `<img src="${product.image}" alt="${product.name}" style="width:100%; height:100%; object-fit:cover;">` : `<i class="fa-solid fa-bottle-droplet" style="font-size:5rem; color:#ccc;"></i>`}
                     </div>
                     <div class="pdp-details">
                         <h1>${product.name}</h1>

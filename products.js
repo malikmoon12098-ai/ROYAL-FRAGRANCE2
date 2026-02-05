@@ -97,7 +97,7 @@ function renderProducts(containerId, productList) {
         card.innerHTML = `
             <div class="product-image" onclick="window.location.href='product.html?id=${product.id}'" style="cursor:pointer;">
                 <!-- Placeholder Image Logic -->
-                ${product.image && !product.image.includes('path/to') ? `<img src="${product.image}" alt="${product.name}">` : `
+                ${product.image && product.image.trim() !== '' && !product.image.includes('path/to') ? `<img src="${product.image}" alt="${product.name}" style="width:100%; height:100%; object-fit:cover;">` : `
                 <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f9f9f9; color:#aaa;">
                    <i class="fa-solid fa-bottle-droplet" style="font-size:3rem; opacity:0.3;"></i>
                 </div>`}
