@@ -30,7 +30,7 @@ function switchView(viewName) {
 
 function loadAnalytics() {
     const main = document.getElementById('main-content');
-    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    const orders = getGlobalOrderStats(); // Use all orders (Active + Archive)
     const products = JSON.parse(localStorage.getItem('rf_products')) || [];
 
     // Calculate basic stats
@@ -458,7 +458,8 @@ function loadCustomers() {
 function loadAIInsights() {
     const main = document.getElementById('main-content');
     const products = JSON.parse(localStorage.getItem('rf_products')) || [];
-    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    const orders = getGlobalOrderStats(); // Use archived data for better insights
+    const hasData = orders.length > 0;
 
     // --- Dynamic Analysis ---
 
@@ -494,6 +495,8 @@ function loadAIInsights() {
             bestCategory = cat;
         }
     }
+
+
 
     main.innerHTML = `
         <header class="header">
@@ -643,10 +646,36 @@ function processAdminAIQuery(query) {
     return "Maaf kijiye, mujhe samajh nahi aaya. Aap mujhse sale, stock, ya best products ke bare mein Roman Urdu mein pooch sakte hain. <br><br> (Tip: Product ka sahi naam likhein)";
 }
 
+// --- DATA UTILITIES ---
+function getGlobalOrderStats() {
+    const activeOrders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    const archivedOrders = JSON.parse(localStorage.getItem('rf_order_history_archive')) || [];
+    return [...activeOrders, ...archivedOrders];
+}
+
+function archiveDeletedOrder(order) {
+    let archive = JSON.parse(localStorage.getItem('rf_order_history_archive')) || [];
+    // Save a minimal version for reporting
+    archive.push({
+        id: order.id,
+        date: order.date,
+        total: order.total,
+        status: order.status,
+        items: order.items.map(i => ({ id: i.id, name: i.name, qty: i.qty, price: i.price }))
+    });
+    localStorage.setItem('rf_order_history_archive', JSON.stringify(archive));
+}
+
 function deleteOrder(orderId) {
     if (!confirm('Are you sure you want to delete this order?')) return;
 
     let orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    const orderToDelete = orders.find(o => o.id === orderId);
+
+    if (orderToDelete) {
+        archiveDeletedOrder(orderToDelete);
+    }
+
     orders = orders.filter(o => o.id !== orderId);
     localStorage.setItem('rf_orders', JSON.stringify(orders));
     loadOrders();
@@ -654,7 +683,7 @@ function deleteOrder(orderId) {
 
 function loadHisabKitab() {
     const main = document.getElementById('main-content');
-    const orders = JSON.parse(localStorage.getItem('rf_orders')) || [];
+    const orders = getGlobalOrderStats(); // Important: Include deleted orders in financials
     const products = JSON.parse(localStorage.getItem('rf_products')) || [];
 
     // Aggregation Logic
