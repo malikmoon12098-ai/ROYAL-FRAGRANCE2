@@ -161,7 +161,6 @@ p {
 /* App Screen */
 #app-screen {
     background-color: var(--bg-dark);
-    display: none;
 }
 
 .app-header {
