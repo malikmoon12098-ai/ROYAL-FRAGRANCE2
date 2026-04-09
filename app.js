@@ -118,13 +118,11 @@ function generateAvatarUrl(customState = null, isThumb = false, itemIndex = 0) {
     const topVal = s.gender === "male" ? AVATAR_OPTIONS.maleTop[s.top] : AVATAR_OPTIONS.femaleTop[s.top];
     const facialHairVal = s.gender === "male" ? s.facialHair : "none";
 
-    // Build unique seed to force a fresh render
-    const seed = `mchat_${s.gender}_${topVal}_${s.hairColor}_${s.skinColor}_${itemIndex}`.replace(/\s+/g, '');
-
     const params = new URLSearchParams({
-        seed: seed,
+        seed: `mchat_${s.gender}_${topVal}_${s.hairColor}_${itemIndex}`,
         top: topVal,
         topColor: AVATAR_OPTIONS.hairColor[s.hairColor],
+        facialHairColor: AVATAR_OPTIONS.hairColor[s.hairColor],
         skinColor: AVATAR_OPTIONS.skinColor[s.skinColor],
         clothing: AVATAR_OPTIONS.clothing[s.clothing],
         clothingColor: AVATAR_OPTIONS.clothingColor[s.clothingColor || 0],
@@ -134,8 +132,8 @@ function generateAvatarUrl(customState = null, isThumb = false, itemIndex = 0) {
         facialHairProbability: (facialHairVal === "none" ? "0" : "100"),
         mouth: AVATAR_OPTIONS.mouth[s.mouth],
         backgroundColor: "b6e3f4",
-        scale: isThumb ? "90" : "100", // Larger scale with better centering
-        translateY: "0" // Ensure head stays centered
+        scale: isThumb ? "90" : "100",
+        translateY: "-10" // Pull the head UP into the frame
     });
     return `${baseUrl}?${params.toString()}`;
 }
