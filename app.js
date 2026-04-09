@@ -111,27 +111,31 @@ let currentAvatarState = {
 
 let currentCategory = "top";
 
-function generateAvatarUrl(customState = null, isThumb = false) {
+function generateAvatarUrl(customState = null, isThumb = false, itemIndex = 0) {
     const s = customState || currentAvatarState;
     const baseUrl = "https://api.dicebear.com/9.x/avataaars/svg";
     
     const topVal = s.gender === "male" ? AVATAR_OPTIONS.maleTop[s.top] : AVATAR_OPTIONS.femaleTop[s.top];
     const facialHairVal = s.gender === "male" ? s.facialHair : "none";
 
-    // Build unique seed
-    const seed = `mchat_${s.gender}_${topVal}_${s.hairColor}_${s.skinColor}`.replace(/\s+/g, '');
+    // Build unique seed to force a fresh render
+    const seed = `mchat_${s.gender}_${topVal}_${s.hairColor}_${s.skinColor}_${itemIndex}`.replace(/\s+/g, '');
 
     const params = new URLSearchParams({
         seed: seed,
         top: topVal,
-        hairColor: AVATAR_OPTIONS.hairColor[s.hairColor],
+        topColor: AVATAR_OPTIONS.hairColor[s.hairColor],
         skinColor: AVATAR_OPTIONS.skinColor[s.skinColor],
         clothing: AVATAR_OPTIONS.clothing[s.clothing],
+        clothingColor: AVATAR_OPTIONS.clothingColor[s.clothingColor || 0],
         accessories: (s.accessories && AVATAR_OPTIONS.accessories[s.accessories] !== "none") ? AVATAR_OPTIONS.accessories[s.accessories] : "",
+        accessoriesProbability: (s.accessories && AVATAR_OPTIONS.accessories[s.accessories] !== "none") ? "100" : "0",
         facialHair: (facialHairVal === "none" ? "" : facialHairVal),
+        facialHairProbability: (facialHairVal === "none" ? "0" : "100"),
         mouth: AVATAR_OPTIONS.mouth[s.mouth],
         backgroundColor: "b6e3f4",
-        scale: isThumb ? "60" : "85" // Thumbnail zoom fix
+        scale: isThumb ? "90" : "100", // Larger scale with better centering
+        translateY: "0" // Ensure head stays centered
     });
     return `${baseUrl}?${params.toString()}`;
 }
@@ -169,7 +173,7 @@ function renderChoicesGrid() {
             thumbState[currentCategory] = index;
         }
         
-        const thumbUrl = generateAvatarUrl(thumbState, true); // Pass true for thumbnail scale
+        const thumbUrl = generateAvatarUrl(thumbState, true, index); // Pass index for unique seed
         itemDiv.innerHTML = `<img src="${thumbUrl}" loading="lazy" onerror="this.src='https://api.dicebear.com/9.x/initials/svg?seed=Avatar'">`;
         
         itemDiv.onclick = () => {
