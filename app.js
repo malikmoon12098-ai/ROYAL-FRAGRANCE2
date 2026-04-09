@@ -16,9 +16,11 @@ const DOM = {
     chatItemsList: document.getElementById('chat-items-list'),
     // Avatar creation elements
     createAvatarBtn: document.getElementById('create-avatar-btn'),
-    rpmOverlay: document.getElementById('rpm-overlay'),
-    rpmIframe: document.getElementById('rpm-iframe'),
-    rpmCloseBtn: document.getElementById('rpm-close-btn'),
+    cameraOverlay: document.getElementById('camera-overlay'),
+    cameraVideo: document.getElementById('camera-video'),
+    cameraCanvas: document.getElementById('camera-canvas'),
+    cameraCaptureBtn: document.getElementById('camera-capture-btn'),
+    cameraCloseBtn: document.getElementById('camera-close-btn'),
     avatarPreviewImg: document.getElementById('avatar-preview-img'),
     avatarPlaceholderIcon: document.getElementById('avatar-placeholder-icon'),
     avatarStatusText: document.getElementById('avatar-status-text'),
@@ -78,87 +80,86 @@ function showScreen(screenName) {
     if (screenName === 'app') DOM.app.classList.add('active');
 }
 
-// --- Ready Player Me Avatar Integration ---
+// --- Native HTML5 Smart Canvas Avatar Integration ---
+let cameraStream = null;
 
-// Open RPM full-screen builder for Onboarding
-DOM.createAvatarBtn.addEventListener('click', () => {
-    isRetakingAvatar = false;
-    DOM.rpmIframe.src = 'https://demo.readyplayer.me/avatar?frameApi&selfie=true&clearColor=transparent';
-    DOM.rpmOverlay.style.display = 'block';
-});
-
-// Open RPM full-screen builder for Edit Profile
-DOM.editRetakeAvatarBtn.addEventListener('click', () => {
-    isRetakingAvatar = true;
-    DOM.rpmIframe.src = 'https://demo.readyplayer.me/avatar?frameApi&selfie=true&clearColor=transparent';
-    DOM.rpmOverlay.style.display = 'block';
-});
-
-// Close RPM overlay
-DOM.rpmCloseBtn.addEventListener('click', () => {
-    DOM.rpmOverlay.style.display = 'none';
-    DOM.rpmIframe.src = '';
-});
-
-// Listen for RPM exported avatar URL
-window.addEventListener('message', (event) => {
-    // Only accept messages from readyplayer.me
-    if (!event.origin.includes('readyplayer.me')) return;
+async function startCamera(isRetake = false) {
+    isRetakingAvatar = isRetake;
+    DOM.cameraOverlay.style.display = 'block';
     
     try {
-        const json = JSON.parse(event.data);
-        if (json?.source === 'readyplayerme') {
-            if (json.eventName === 'v1.avatar.exported') {
-                const avatarGlbUrl = json.data.url;
-                console.log('RPM Avatar URL received:', avatarGlbUrl);
-                
-                // Convert to a 2D portrait render using Ready Player Me's render API
-                const avatarRenderUrl = `https://api.readyplayer.me/v1/avatars/${getAvatarId(avatarGlbUrl)}/renders?scene=fullbody-portrait-v1&blendShapes[Wolf3D_Avatar][mouthSmile]=0.5`;
-                
-                if (isRetakingAvatar) {
-                    DOM.editAvatarPreviewImg.src = avatarRenderUrl;
-                    DOM.editAvatarPreviewImg.dataset.newUrl = avatarRenderUrl;
-                    DOM.editAvatarPreviewImg.onerror = () => {
-                        const fallbackUrl = `https://models.readyplayer.me/${getAvatarId(avatarGlbUrl)}.png`;
-                        DOM.editAvatarPreviewImg.src = fallbackUrl;
-                        DOM.editAvatarPreviewImg.dataset.newUrl = fallbackUrl;
-                    };
-                } else {
-                    generatedAvatarUrl = avatarRenderUrl;
-                    
-                    // Show the preview
-                    DOM.avatarPlaceholderIcon.style.display = 'none';
-                    DOM.avatarPreviewImg.src = avatarRenderUrl;
-                    DOM.avatarPreviewImg.style.display = 'block';
-                    DOM.avatarPreviewImg.onerror = () => {
-                        // Fallback if render API fails – use the direct glb thumbnail
-                        generatedAvatarUrl = `https://models.readyplayer.me/${getAvatarId(avatarGlbUrl)}.png`;
-                        DOM.avatarPreviewImg.src = generatedAvatarUrl;
-                    };
-    
-                    // Unlock Generate Account button
-                    DOM.generateBtn.disabled = false;
-                    DOM.generateBtn.style.opacity = '1';
-                    DOM.avatarStatusText.innerText = '✅ Avatar created! Now generate your account.';
-                    DOM.avatarStatusText.classList.add('success');
-                    DOM.createAvatarBtn.innerText = '✏️ Change Avatar';
-                }
-                
-                // Close overlay
-                DOM.rpmOverlay.style.display = 'none';
-                DOM.rpmIframe.src = '';
-            }
-        }
-    } catch(e) {}
-});
-
-function getAvatarId(url) {
-    // Extract avatar ID from RPM GLB URL
-    // e.g. https://models.readyplayer.me/64xyz.glb => 64xyz
-    const parts = url.split('/');
-    const filename = parts[parts.length - 1];
-    return filename.replace('.glb', '');
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        DOM.cameraVideo.srcObject = cameraStream;
+    } catch (err) {
+        alert("Camera access is required to create your Avatar.");
+        closeCamera();
+    }
 }
+
+function closeCamera() {
+    DOM.cameraOverlay.style.display = 'none';
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+}
+
+DOM.createAvatarBtn.addEventListener('click', () => startCamera(false));
+DOM.editRetakeAvatarBtn.addEventListener('click', () => startCamera(true));
+DOM.cameraCloseBtn.addEventListener('click', closeCamera);
+
+DOM.cameraCaptureBtn.addEventListener('click', () => {
+    // Flash effect
+    DOM.cameraCaptureBtn.style.transform = 'scale(0.8)';
+    setTimeout(() => DOM.cameraCaptureBtn.style.transform = 'scale(1)', 150);
+
+    // Setup Canvas
+    const canvas = DOM.cameraCanvas;
+    const ctx = canvas.getContext('2d');
+    canvas.width = 400;
+    canvas.height = 400;
+
+    // Crop center square
+    const videoSize = Math.min(DOM.cameraVideo.videoWidth, DOM.cameraVideo.videoHeight);
+    const startX = (DOM.cameraVideo.videoWidth - videoSize) / 2;
+    const startY = (DOM.cameraVideo.videoHeight - videoSize) / 2;
+
+    // Flip horizontal to act like mirror
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+
+    // Filter to make it look like a Comic/Avatar
+    // High contrast, saturate, and posterize-like feel
+    ctx.filter = 'contrast(1.4) saturate(1.8) sepia(0.2)';
+
+    // Draw frame to canvas
+    ctx.drawImage(DOM.cameraVideo, startX, startY, videoSize, videoSize, 0, 0, 400, 400);
+
+    // Reset filter
+    ctx.filter = 'none';
+
+    // Get Base64 URL
+    const avatarDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+    if (isRetakingAvatar) {
+        DOM.editAvatarPreviewImg.src = avatarDataUrl;
+        DOM.editAvatarPreviewImg.dataset.newUrl = avatarDataUrl;
+    } else {
+        generatedAvatarUrl = avatarDataUrl;
+        
+        DOM.avatarPlaceholderIcon.style.display = 'none';
+        DOM.avatarPreviewImg.src = avatarDataUrl;
+        DOM.avatarPreviewImg.style.display = 'block';
+
+        DOM.generateBtn.disabled = false;
+        DOM.generateBtn.style.opacity = '1';
+        DOM.avatarStatusText.innerText = '✅ Avatar Filter applied! Now generate your account.';
+        DOM.avatarStatusText.classList.add('success');
+        DOM.createAvatarBtn.innerText = '✏️ Retake Selfie';
+    }
+
+    closeCamera();
+});
 
 // --- Account Generation ---
 
