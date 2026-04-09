@@ -128,15 +128,36 @@ DOM.cameraCaptureBtn.addEventListener('click', () => {
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
 
-    // Filter to make it look like a Comic/Avatar
-    // High contrast, saturate, and posterize-like feel
-    ctx.filter = 'contrast(1.4) saturate(1.8) sepia(0.2)';
-
-    // Draw frame to canvas
+    // Draw frame to canvas first
+    ctx.filter = 'contrast(1.2) saturate(1.8)'; // Initial color boost
     ctx.drawImage(DOM.cameraVideo, startX, startY, videoSize, videoSize, 0, 0, 400, 400);
 
-    // Reset filter
-    ctx.filter = 'none';
+    // Apply real JS Pixel Posterization to create the "Cartoon/Avatar" look
+    const imgData = ctx.getImageData(0, 0, 400, 400);
+    const data = imgData.data;
+
+    // Reduce color palette to create flat cartoon shadows and highlights
+    const steps = 4; // Lower value = more flat/cartoonish
+    const stepSize = 255 / steps;
+
+    for (let i = 0; i < data.length; i += 4) {
+        // Quantize colors
+        data[i] = Math.round(data[i] / stepSize) * stepSize;         // R
+        data[i + 1] = Math.round(data[i + 1] / stepSize) * stepSize; // G
+        data[i + 2] = Math.round(data[i + 2] / stepSize) * stepSize; // B
+        
+        // Boost Green/Blue slightly to give an artistic stylized feel
+        data[i+1] = Math.min(255, data[i+1] + 10);
+        data[i+2] = Math.min(255, data[i+2] + 20);
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    // Add comic-style edge darkening (Vignette)
+    const gradient = ctx.createRadialGradient(200, 200, 100, 200, 200, 250);
+    gradient.addColorStop(0, 'rgba(0,0,0,0)');
+    gradient.addColorStop(1, 'rgba(0,0,0,0.5)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 400, 400);
 
     // Get Base64 URL
     const avatarDataUrl = canvas.toDataURL('image/jpeg', 0.8);
