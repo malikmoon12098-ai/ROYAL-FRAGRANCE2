@@ -83,14 +83,14 @@ function showScreen(screenName) {
 // Open RPM full-screen builder for Onboarding
 DOM.createAvatarBtn.addEventListener('click', () => {
     isRetakingAvatar = false;
-    DOM.rpmIframe.src = 'https://mchat.readyplayer.me/avatar?frameApi&selfie=true&clearColor=transparent';
+    DOM.rpmIframe.src = 'https://demo.readyplayer.me/avatar?frameApi&selfie=true&clearColor=transparent';
     DOM.rpmOverlay.style.display = 'block';
 });
 
 // Open RPM full-screen builder for Edit Profile
 DOM.editRetakeAvatarBtn.addEventListener('click', () => {
     isRetakingAvatar = true;
-    DOM.rpmIframe.src = 'https://mchat.readyplayer.me/avatar?frameApi&selfie=true&clearColor=transparent';
+    DOM.rpmIframe.src = 'https://demo.readyplayer.me/avatar?frameApi&selfie=true&clearColor=transparent';
     DOM.rpmOverlay.style.display = 'block';
 });
 
