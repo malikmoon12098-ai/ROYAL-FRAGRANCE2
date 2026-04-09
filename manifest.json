@@ -1,0 +1,17 @@
+{
+  "name": "M-Chat",
+  "short_name": "M-Chat",
+  "description": "A premium, fast, and secure messaging application.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#4fb087",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "assets/m-chat-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
