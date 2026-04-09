@@ -146,6 +146,66 @@ p {
     background-color: var(--primary-dark);
 }
 
+.primary-btn:disabled {
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: 2px solid var(--primary);
+    background-color: transparent;
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+    margin-bottom: 10px;
+}
+
+.secondary-btn:hover {
+    background-color: rgba(79, 176, 135, 0.1);
+}
+
+/* Avatar Creation Section */
+.avatar-creation-section {
+    margin: 20px 0;
+}
+
+#avatar-preview-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px dashed var(--primary);
+    background: rgba(79, 176, 135, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px auto;
+    overflow: hidden;
+    font-size: 2.5rem;
+    transition: var(--transition);
+}
+
+#avatar-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.avatar-hint {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 15px;
+}
+
+.avatar-hint.success {
+    color: var(--primary);
+}
+
+
 .generated-id-box {
     background: rgba(79, 176, 135, 0.1);
     border: 2px dashed var(--primary);
@@ -206,6 +266,156 @@ p {
     font-size: 1.4rem;
     cursor: pointer;
 }
+
+/* Settings Dropdown */
+.header-right {
+    position: relative;
+}
+
+.settings-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 200px;
+    border-radius: 14px;
+    overflow: hidden;
+    z-index: 200;
+    padding: 6px 0;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    animation: fadeSlideIn 0.2s ease;
+}
+
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.settings-item {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 13px 20px;
+    text-align: left;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.2s;
+}
+
+.settings-item:hover {
+    background: rgba(255,255,255,0.07);
+}
+
+.settings-item.danger {
+    color: #ff5555;
+}
+
+.settings-divider {
+    height: 1px;
+    background: var(--border-glass);
+    margin: 4px 0;
+}
+
+/* Modal Backdrop */
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.75);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal-box {
+    width: 88%;
+    max-width: 360px;
+    border-radius: 20px;
+    padding: 28px 24px;
+    text-align: center;
+    animation: popIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes popIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+.modal-box h3 {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+}
+
+.modal-box p {
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+    color: var(--text-dim);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.modal-btn {
+    flex: 1;
+    padding: 13px;
+    border-radius: 12px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.cancel-btn {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.cancel-btn:hover { background: rgba(255,255,255,0.18); }
+
+.delete-btn {
+    background: #ff3b3b;
+    color: white;
+}
+
+.delete-btn:hover { background: #cc2222; }
+
+.save-btn {
+    background: var(--primary);
+    color: white;
+}
+
+.save-btn:hover { background: var(--primary-dark); }
+
+/* Edit Profile Modal */
+.edit-avatar-section {
+    margin-bottom: 10px;
+}
+
+#edit-avatar-preview-circle {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--primary);
+    margin: 0 auto 10px auto;
+}
+
+#edit-avatar-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+
 
 /* Chat List */
 #chat-list-container {
