@@ -89,7 +89,9 @@ const AVATAR_OPTIONS = {
     hairColor: ["2c1b18", "4a312c", "724133", "a55728", "b58143", "d6b370", "724133", "4a312c"],
     skinColor: ["624133", "8d5524", "c68642", "e0ac69", "f1c27d", "ffdbac", "edb98a"],
     clothing: ["blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck"],
-    accessories: ["none", "kurt", "prescription01", "prescription02", "round", "sunglasses", "wayfarers"],
+    clothing: ["blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck"],
+    clothingColor: ["262e33", "65c9ff", "5199e4", "25557c", "e6e6e6", "929598", "3c4f5c", "b1e2ff"],
+    accessories: ["none", "kurt", "prescription01", "prescription02", "round", "sunglasses", "wayfarers", "eyepatch"],
     beards: ["none", "beardMedium", "beardLight", "beardMajestic", "beardSmall", "beardThick"],
     moustaches: ["none", "moustachFancy", "moustacheMagnum", "moustacheSmall", "moustacheThin"],
     mouth: ["smile", "serious", "grimace", "default", "eating", "twinkle", "concerned", "disbelief", "sad", "tongue"]
@@ -101,6 +103,7 @@ let currentAvatarState = {
     hairColor: 0,
     skinColor: 4, 
     clothing: 1,
+    clothingColor: 0,
     accessories: 0,
     facialHair: "none", 
     mouth: 0
@@ -108,15 +111,14 @@ let currentAvatarState = {
 
 let currentCategory = "top";
 
-function generateAvatarUrl(customState = null) {
+function generateAvatarUrl(customState = null, isThumb = false) {
     const s = customState || currentAvatarState;
-    // Using 9.x (latest in 2026) for best stability
     const baseUrl = "https://api.dicebear.com/9.x/avataaars/svg";
     
     const topVal = s.gender === "male" ? AVATAR_OPTIONS.maleTop[s.top] : AVATAR_OPTIONS.femaleTop[s.top];
     const facialHairVal = s.gender === "male" ? s.facialHair : "none";
 
-    // Adding unique seed to prevent caching issues
+    // Build unique seed
     const seed = `mchat_${s.gender}_${topVal}_${s.hairColor}_${s.skinColor}`.replace(/\s+/g, '');
 
     const params = new URLSearchParams({
@@ -125,28 +127,24 @@ function generateAvatarUrl(customState = null) {
         hairColor: AVATAR_OPTIONS.hairColor[s.hairColor],
         skinColor: AVATAR_OPTIONS.skinColor[s.skinColor],
         clothing: AVATAR_OPTIONS.clothing[s.clothing],
-        accessories: (AVATAR_OPTIONS.accessories[s.accessories] === "none" ? "" : AVATAR_OPTIONS.accessories[s.accessories]),
+        accessories: (s.accessories && AVATAR_OPTIONS.accessories[s.accessories] !== "none") ? AVATAR_OPTIONS.accessories[s.accessories] : "",
         facialHair: (facialHairVal === "none" ? "" : facialHairVal),
         mouth: AVATAR_OPTIONS.mouth[s.mouth],
         backgroundColor: "b6e3f4",
-        scale: "85" 
+        scale: isThumb ? "60" : "85" // Thumbnail zoom fix
     });
     return `${baseUrl}?${params.toString()}`;
 }
 
 function updateEditorPreview() {
-    const url = generateAvatarUrl();
-    console.log("Updating Preview:", url);
-    DOM.editorPreviewImg.src = url;
+    DOM.editorPreviewImg.src = generateAvatarUrl();
 }
 
 function renderChoicesGrid() {
     const grid = DOM.choicesGrid;
-    grid.innerHTML = ""; // Clear
+    grid.innerHTML = ""; 
     
     let pool = [];
-    let stateKey = currentCategory;
-
     if (currentCategory === "top") {
         pool = currentAvatarState.gender === "male" ? AVATAR_OPTIONS.maleTop : AVATAR_OPTIONS.femaleTop;
     } else if ((currentCategory === "beards" || currentCategory === "moustaches") && currentAvatarState.gender === "female") {
@@ -158,15 +156,12 @@ function renderChoicesGrid() {
 
     pool.forEach((item, index) => {
         const itemDiv = document.createElement('div');
-        
-        // Active check
         const isActive = (currentCategory === "beards" || currentCategory === "moustaches") 
                          ? currentAvatarState.facialHair === item 
                          : currentAvatarState[currentCategory] === index;
 
         itemDiv.className = `choice-item ${isActive ? 'active' : ''}`;
         
-        // Thumbnail URL
         const thumbState = { ...currentAvatarState };
         if (currentCategory === "beards" || currentCategory === "moustaches") {
             thumbState.facialHair = item;
@@ -174,7 +169,7 @@ function renderChoicesGrid() {
             thumbState[currentCategory] = index;
         }
         
-        const thumbUrl = generateAvatarUrl(thumbState);
+        const thumbUrl = generateAvatarUrl(thumbState, true); // Pass true for thumbnail scale
         itemDiv.innerHTML = `<img src="${thumbUrl}" loading="lazy" onerror="this.src='https://api.dicebear.com/9.x/initials/svg?seed=Avatar'">`;
         
         itemDiv.onclick = () => {
