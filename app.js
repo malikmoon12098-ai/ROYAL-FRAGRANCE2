@@ -14,13 +14,12 @@ const DOM = {
     myAvatar: document.getElementById('my-profile-pic'),
     backBtn: document.getElementById('back-to-list'),
     chatItemsList: document.getElementById('chat-items-list'),
-    // Avatar creation elements
+    // Avatar Customizer elements
     createAvatarBtn: document.getElementById('create-avatar-btn'),
-    cameraOverlay: document.getElementById('camera-overlay'),
-    cameraVideo: document.getElementById('camera-video'),
-    cameraCanvas: document.getElementById('camera-canvas'),
-    cameraCaptureBtn: document.getElementById('camera-capture-btn'),
-    cameraCloseBtn: document.getElementById('camera-close-btn'),
+    avatarEditorOverlay: document.getElementById('avatar-editor-overlay'),
+    editorPreviewImg: document.getElementById('editor-preview-img'),
+    editorCloseBtn: document.getElementById('editor-close-btn'),
+    saveAvatarBtn: document.getElementById('save-avatar-btn'),
     avatarPreviewImg: document.getElementById('avatar-preview-img'),
     avatarPlaceholderIcon: document.getElementById('avatar-placeholder-icon'),
     avatarStatusText: document.getElementById('avatar-status-text'),
@@ -80,106 +79,96 @@ function showScreen(screenName) {
     if (screenName === 'app') DOM.app.classList.add('active');
 }
 
-// --- Native HTML5 Smart Canvas Avatar Integration ---
-let cameraStream = null;
+// --- M-Chat Premium Character Creator (Bitmoji Style) ---
 
-async function startCamera(isRetake = false) {
-    isRetakingAvatar = isRetake;
-    DOM.cameraOverlay.style.display = 'block';
-    
-    try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        DOM.cameraVideo.srcObject = cameraStream;
-    } catch (err) {
-        alert("Camera access is required to create your Avatar.");
-        closeCamera();
-    }
+const AVATAR_OPTIONS = {
+    top: ["longHair", "shortHair", "frizzle", "shaggy", "bob", "curly", "dreads", "frida", "fro", "turban", "winterHat01"],
+    skinColor: ["624133", "edb98a", "f8d25c", "fd9841", "ffdbac", "d08b5b", "ae5d29"],
+    clothing: ["blazerAndShirt", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "sweater"],
+    accessories: ["none", "kurt", "prescription01", "prescription02", "round", "sunglasses", "wayfarers"],
+    facialHair: ["none", "beardMedium", "beardLight", "beardMajestic", "moustachFancy", "mousacheMagnum"],
+    mouth: ["smile", "serious", "grimace", "default", "eating", "twinkle"]
+};
+
+let currentAvatarState = {
+    top: 0,
+    skinColor: 4, // Default light/medium skin
+    clothing: 1,
+    accessories: 0,
+    facialHair: 0,
+    mouth: 0
+};
+
+function generateAvatarUrl() {
+    const s = currentAvatarState;
+    const baseUrl = "https://api.dicebear.com/7.x/avataaars/svg";
+    const params = new URLSearchParams({
+        top: AVATAR_OPTIONS.top[s.top],
+        skinColor: AVATAR_OPTIONS.skinColor[s.skinColor],
+        clothing: AVATAR_OPTIONS.clothing[s.clothing],
+        accessories: AVATAR_OPTIONS.accessories[s.accessories],
+        facialHair: AVATAR_OPTIONS.facialHair[s.facialHair],
+        mouth: AVATAR_OPTIONS.mouth[s.mouth],
+        backgroundColor: "b6e3f4" // Nice blue background
+    });
+    return `${baseUrl}?${params.toString()}`;
 }
 
-function closeCamera() {
-    DOM.cameraOverlay.style.display = 'none';
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-    }
+function updateEditorPreview() {
+    DOM.editorPreviewImg.src = generateAvatarUrl();
 }
 
-DOM.createAvatarBtn.addEventListener('click', () => startCamera(false));
-DOM.editRetakeAvatarBtn.addEventListener('click', () => startCamera(true));
-DOM.cameraCloseBtn.addEventListener('click', closeCamera);
+// Open Editor
+DOM.createAvatarBtn.addEventListener('click', () => {
+    isRetakingAvatar = false;
+    DOM.avatarEditorOverlay.style.display = 'block';
+    updateEditorPreview();
+});
 
-DOM.cameraCaptureBtn.addEventListener('click', () => {
-    // Flash effect
-    DOM.cameraCaptureBtn.style.transform = 'scale(0.8)';
-    setTimeout(() => DOM.cameraCaptureBtn.style.transform = 'scale(1)', 150);
+DOM.editRetakeAvatarBtn.addEventListener('click', () => {
+    isRetakingAvatar = true;
+    DOM.avatarEditorOverlay.style.display = 'block';
+    updateEditorPreview();
+});
 
-    // Setup Canvas
-    const canvas = DOM.cameraCanvas;
-    const ctx = canvas.getContext('2d');
-    canvas.width = 400;
-    canvas.height = 400;
+DOM.editorCloseBtn.addEventListener('click', () => {
+    DOM.avatarEditorOverlay.style.display = 'none';
+});
 
-    // Crop center square
-    const videoSize = Math.min(DOM.cameraVideo.videoWidth, DOM.cameraVideo.videoHeight);
-    const startX = (DOM.cameraVideo.videoWidth - videoSize) / 2;
-    const startY = (DOM.cameraVideo.videoHeight - videoSize) / 2;
-
-    // Flip horizontal to act like mirror
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-
-    // Draw frame to canvas first
-    ctx.filter = 'contrast(1.2) saturate(1.8)'; // Initial color boost
-    ctx.drawImage(DOM.cameraVideo, startX, startY, videoSize, videoSize, 0, 0, 400, 400);
-
-    // Apply real JS Pixel Posterization to create the "Cartoon/Avatar" look
-    const imgData = ctx.getImageData(0, 0, 400, 400);
-    const data = imgData.data;
-
-    // Reduce color palette to create flat cartoon shadows and highlights
-    const steps = 4; // Lower value = more flat/cartoonish
-    const stepSize = 255 / steps;
-
-    for (let i = 0; i < data.length; i += 4) {
-        // Quantize colors
-        data[i] = Math.round(data[i] / stepSize) * stepSize;         // R
-        data[i + 1] = Math.round(data[i + 1] / stepSize) * stepSize; // G
-        data[i + 2] = Math.round(data[i + 2] / stepSize) * stepSize; // B
+// Attribute Buttons Logic
+document.querySelectorAll('.attribute-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const attr = btn.dataset.attr;
+        const total = AVATAR_OPTIONS[attr].length;
         
-        // Boost Green/Blue slightly to give an artistic stylized feel
-        data[i+1] = Math.min(255, data[i+1] + 10);
-        data[i+2] = Math.min(255, data[i+2] + 20);
-    }
-    ctx.putImageData(imgData, 0, 0);
+        // Cycle Index
+        currentAvatarState[attr] = (currentAvatarState[attr] + 1) % total;
+        updateEditorPreview();
+    });
+});
 
-    // Add comic-style edge darkening (Vignette)
-    const gradient = ctx.createRadialGradient(200, 200, 100, 200, 200, 250);
-    gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(1, 'rgba(0,0,0,0.5)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 400, 400);
-
-    // Get Base64 URL
-    const avatarDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
+// Save Logic
+DOM.saveAvatarBtn.addEventListener('click', () => {
+    const finalUrl = generateAvatarUrl();
+    
     if (isRetakingAvatar) {
-        DOM.editAvatarPreviewImg.src = avatarDataUrl;
-        DOM.editAvatarPreviewImg.dataset.newUrl = avatarDataUrl;
+        DOM.editAvatarPreviewImg.src = finalUrl;
+        DOM.editAvatarPreviewImg.dataset.newUrl = finalUrl;
     } else {
-        generatedAvatarUrl = avatarDataUrl;
+        generatedAvatarUrl = finalUrl;
         
         DOM.avatarPlaceholderIcon.style.display = 'none';
-        DOM.avatarPreviewImg.src = avatarDataUrl;
+        DOM.avatarPreviewImg.src = finalUrl;
         DOM.avatarPreviewImg.style.display = 'block';
 
         DOM.generateBtn.disabled = false;
         DOM.generateBtn.style.opacity = '1';
-        DOM.avatarStatusText.innerText = '✅ Avatar Filter applied! Now generate your account.';
+        DOM.avatarStatusText.innerText = '✅ Avatar saved! Looking great.';
         DOM.avatarStatusText.classList.add('success');
-        DOM.createAvatarBtn.innerText = '✏️ Retake Selfie';
+        DOM.createAvatarBtn.innerText = '✏️ Edit Avatar';
     }
-
-    closeCamera();
+    
+    DOM.avatarEditorOverlay.style.display = 'none';
 });
 
 // --- Account Generation ---
