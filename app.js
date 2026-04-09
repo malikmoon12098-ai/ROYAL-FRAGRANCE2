@@ -110,13 +110,17 @@ let currentCategory = "top";
 
 function generateAvatarUrl(customState = null) {
     const s = customState || currentAvatarState;
-    const baseUrl = "https://api.dicebear.com/7.x/avataaars/svg";
+    // Using 9.x (latest in 2026) for best stability
+    const baseUrl = "https://api.dicebear.com/9.x/avataaars/svg";
     
-    // Choose pool based on gender
     const topVal = s.gender === "male" ? AVATAR_OPTIONS.maleTop[s.top] : AVATAR_OPTIONS.femaleTop[s.top];
     const facialHairVal = s.gender === "male" ? s.facialHair : "none";
 
+    // Adding unique seed to prevent caching issues
+    const seed = `mchat_${s.gender}_${topVal}_${s.hairColor}_${s.skinColor}`.replace(/\s+/g, '');
+
     const params = new URLSearchParams({
+        seed: seed,
         top: topVal,
         hairColor: AVATAR_OPTIONS.hairColor[s.hairColor],
         skinColor: AVATAR_OPTIONS.skinColor[s.skinColor],
@@ -124,13 +128,16 @@ function generateAvatarUrl(customState = null) {
         accessories: (AVATAR_OPTIONS.accessories[s.accessories] === "none" ? "" : AVATAR_OPTIONS.accessories[s.accessories]),
         facialHair: (facialHairVal === "none" ? "" : facialHairVal),
         mouth: AVATAR_OPTIONS.mouth[s.mouth],
-        backgroundColor: "b6e3f4"
+        backgroundColor: "b6e3f4",
+        scale: "85" 
     });
     return `${baseUrl}?${params.toString()}`;
 }
 
 function updateEditorPreview() {
-    DOM.editorPreviewImg.src = generateAvatarUrl();
+    const url = generateAvatarUrl();
+    console.log("Updating Preview:", url);
+    DOM.editorPreviewImg.src = url;
 }
 
 function renderChoicesGrid() {
@@ -168,7 +175,7 @@ function renderChoicesGrid() {
         }
         
         const thumbUrl = generateAvatarUrl(thumbState);
-        itemDiv.innerHTML = `<img src="${thumbUrl}" loading="lazy">`;
+        itemDiv.innerHTML = `<img src="${thumbUrl}" loading="lazy" onerror="this.src='https://api.dicebear.com/9.x/initials/svg?seed=Avatar'">`;
         
         itemDiv.onclick = () => {
             if (currentCategory === "beards" || currentCategory === "moustaches") {
