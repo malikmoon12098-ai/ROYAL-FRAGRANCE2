@@ -16,56 +16,29 @@ const DOM = {
     chatItemsList: document.getElementById('chat-items-list')
 };
 
-// --- Initialization & Device Fingerprint ---
-
-// In a real Capacitor app, we would use: 
-// import { Device } from '@capacitor/device';
-// const info = await Device.getId(); 
-// let deviceId = info.identifier;
-
-// For this web-based prototype, we emulate a persistent device ID using localStorage.
-// If packaged as an APK, this would connect to the actual Android Hardware ID.
-function getHardwareId() {
-    let hwId = localStorage.getItem('mchat_hardware_uuid');
-    if (!hwId) {
-        hwId = 'HW-' + Math.random().toString(36).substr(2, 16);
-        localStorage.setItem('mchat_hardware_uuid', hwId);
-    }
-    return hwId;
-}
-
 let currentUser = null;
+let mqttClient = null;
+let activeChatObj = null;
+
+// --- Initialization ---
 
 async function initApp() {
-    console.log("Initializing M-Chat...");
+    console.log("Initializing M-Chat with MQTT Engine...");
     
     // Minimum splash screen duration for premium feel
     const splashDelay = new Promise(res => setTimeout(res, 2000));
+    await splashDelay;
+        
+    const localData = localStorage.getItem('mchat_currentUser');
     
-    try {
-        const hardwareId = getHardwareId();
-        
-        // 1. Check Puter Cloud for an existing account linked to this device
-        // We use a specific key pattern: device_account_<hardwareId>
-        const existingData = await puter.kv.get(`device_account_${hardwareId}`);
-        
-        await splashDelay;
-
-        if (existingData) {
-            // Auto-login! Found existing account on this device.
-            console.log("Account recovered for device:", hardwareId);
-            currentUser = typeof existingData === 'string' ? JSON.parse(existingData) : existingData;
-            loadMainApp();
-        } else {
-            // New device / No account
-            console.log("No account found. Prompting onboarding.");
-            showScreen('onboarding');
-        }
-
-    } catch (error) {
-        console.error("Initialization error:", error);
-        await splashDelay;
-        DOM.statusMsg.innerText = "Error connecting to servers.";
+    if (localData) {
+        // Auto-login from local device storage!
+        console.log("Account recovered from local storage.");
+        currentUser = JSON.parse(localData);
+        loadMainApp();
+    } else {
+        // New device / No account
+        console.log("No account found. Prompting onboarding.");
         showScreen('onboarding');
     }
 }
@@ -81,7 +54,7 @@ function showScreen(screenName) {
     if (screenName === 'app') DOM.app.classList.add('active');
 }
 
-// --- Account Generation Logic ---
+// --- Account Generation Logic (Without Puter) ---
 
 DOM.generateBtn.addEventListener('click', async () => {
     const name = DOM.nameInput.value.trim();
@@ -92,59 +65,33 @@ DOM.generateBtn.addEventListener('click', async () => {
 
     DOM.generateBtn.disabled = true;
     DOM.generateBtn.innerText = "Generating...";
-    DOM.statusMsg.innerText = "Connecting to M-Chat secure servers...";
+    DOM.statusMsg.innerText = "Generating secure offline ID...";
 
-    try {
-        // Atomic increment from Puter.js to get a unique sequential number
-        // Starts at 0 natively, so we add it to 200000000
-        const counter = await puter.kv.incr('mchat_global_user_counter');
-        
-        // Format logic: 0200 + 6 digit counter (pad with zeros)
-        // E.g., counter 1 => 0200000001
-        const uniqueIdString = "0200" + counter.toString().padStart(6, '0');
-        
-        const hardwareId = getHardwareId();
-        
-        currentUser = {
-            id: uniqueIdString,
-            name: name,
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
-            createdAt: new Date().toISOString(),
-            deviceId: hardwareId
-        };
+    // Generate a pseudo-random 6-digit number and prepend 0200
+    const random6 = Math.floor(100000 + Math.random() * 900000);
+    const uniqueIdString = "0200" + random6.toString();
+    
+    currentUser = {
+        id: uniqueIdString,
+        name: name,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+        createdAt: new Date().toISOString()
+    };
 
-        // Save to Puter Cloud linked to this specific device
-        await puter.kv.set(`device_account_${hardwareId}`, JSON.stringify(currentUser));
-        
-        // Also add to a global directory of all users (for searching later)
-        await puter.kv.set(`user_profile_${uniqueIdString}`, JSON.stringify({
-            id: currentUser.id,
-            name: currentUser.name,
-            avatar: currentUser.avatar
-        }));
-
-        // Show Success
-        DOM.displayId.innerText = uniqueIdString;
-        showScreen('success');
-
-    } catch (err) {
-        console.error("Failed to generate account:", err);
-        DOM.statusMsg.innerText = "Generation failed. Try again.";
-        DOM.generateBtn.disabled = false;
-        DOM.generateBtn.innerText = "Generate Account";
-    }
+    // Save strictly to local device. No logins needed.
+    localStorage.setItem('mchat_currentUser', JSON.stringify(currentUser));
+    
+    // Show Success
+    DOM.displayId.innerText = uniqueIdString;
+    showScreen('success');
 });
 
 DOM.startChatBtn.addEventListener('click', () => {
     loadMainApp();
 });
 
-let activeChatObj = null;
-let chatPollingTimer = null;
-let currentMessageCount = 0;
 
-
-// --- Main App Logic ---
+// --- Main App & MQTT Logic ---
 
 function loadMainApp() {
     if (!currentUser) return;
@@ -155,30 +102,57 @@ function loadMainApp() {
     DOM.myAvatar.src = currentUser.avatar;
 
     showScreen('app');
+    
+    // Initialize MQTT WebSockets connection
+    initMQTT();
+    
+    // Load friend list
     loadDummyChats();
 }
 
-// --- Real-time Chat Logic ---
-function loadDummyChats() {
-    // Bind Add Friend Button
-    document.getElementById('add-friend-btn').addEventListener('click', startNewChat);
-}
+function initMQTT() {
+    // Connect to free public EMQX broker
+    const clientId = 'mchat_client_' + currentUser.id + '_' + Math.random().toString(16).substr(2, 8);
+    const host = 'wss://broker.emqx.io:8084/mqtt';
+    
+    console.log("Connecting to MQTT broker...");
+    mqttClient = mqtt.connect(host, {
+        clientId: clientId,
+        clean: true,
+        connectTimeout: 4000,
+        reconnectPeriod: 2000,
+    });
 
-async function startNewChat() {
-    const friendId = document.getElementById('new-chat-input').value.trim();
-    if(friendId.length < 5 || friendId === currentUser.id) return alert("Invalid ID");
-    
-    // Check if user exists
-    const friendProfile = await puter.kv.get(`user_profile_${friendId}`);
-    if(!friendProfile) return alert("User not found!");
-    
-    const friend = typeof friendProfile === 'string' ? JSON.parse(friendProfile) : friendProfile;
-    document.getElementById('new-chat-input').value = ""; // Clear
-    openChatView(friend.name, friend.id, friend.avatar);
+    mqttClient.on('connect', () => {
+        console.log('Connected to MQTT Broker.');
+        // Subscribe to a personal inbox channel just in case
+        mqttClient.subscribe(`mchat_inbox_${currentUser.id}`);
+    });
+
+    mqttClient.on('message', (topic, message) => {
+        try {
+            const payload = JSON.parse(message.toString());
+            handleIncomingMessage(topic, payload);
+        } catch (e) {
+            console.error("Failed to parse message:", e);
+        }
+    });
 }
 
 function getChatRoomId(id1, id2) {
-    return "chat_" + [id1, id2].sort().join('_');
+    return "mchat_room_" + [id1, id2].sort().join('_');
+}
+
+function loadDummyChats() {
+    document.getElementById('add-friend-btn').addEventListener('click', startNewChat);
+}
+
+function startNewChat() {
+    const friendId = document.getElementById('new-chat-input').value.trim();
+    if(friendId.length < 5 || friendId === currentUser.id) return alert("Invalid ID");
+    
+    document.getElementById('new-chat-input').value = ""; // Clear
+    openChatView("Friend " + friendId, friendId, `https://api.dicebear.com/7.x/avataaars/svg?seed=${friendId}`);
 }
 
 // --- Chat View Utilities ---
@@ -186,70 +160,115 @@ function getChatRoomId(id1, id2) {
 function openChatView(name, id, avatar) {
     activeChatObj = { id, name, avatar };
     document.getElementById('active-chat-name').innerText = name;
-    document.getElementById('active-chat-avatar').src = avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=system&backgroundColor=4fb087`;
+    document.getElementById('active-chat-avatar').src = avatar;
     DOM.chatView.classList.add('open');
     
-    // Setup message container and Start Polling
-    document.getElementById('message-container').innerHTML = "";
-    currentMessageCount = 0;
-    pollMessages();
-    chatPollingTimer = setInterval(pollMessages, 2000);
+    const roomId = getChatRoomId(currentUser.id, id);
+    
+    // Subscribe to this room's real-time events channel
+    if (mqttClient) {
+        mqttClient.subscribe(roomId);
+    }
+    
+    // Render existing local messages for this room
+    renderLocalMessages();
 }
 
-async function pollMessages() {
-    if(!activeChatObj || !currentUser) return;
+function getLocalMessages() {
+    if (!activeChatObj) return [];
     const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
-    let msgsData = await puter.kv.get(roomId);
-    let msgsStr = typeof msgsData === 'string' ? msgsData : JSON.stringify(msgsData || "[]");
-    let msgs = msgsData ? JSON.parse(msgsStr) : [];
+    const stored = localStorage.getItem(roomId);
+    return stored ? JSON.parse(stored) : [];
+}
+
+function saveLocalMessage(roomId, msgObj) {
+    let stored = localStorage.getItem(roomId);
+    let msgs = stored ? JSON.parse(stored) : [];
+    // Only save if it's distinct to prevent dupes
+    if (!msgs.find(m => m.msgId === msgObj.msgId)) {
+        msgs.push(msgObj);
+        localStorage.setItem(roomId, JSON.stringify(msgs));
+        return true;
+    }
+    return false;
+}
+
+function renderLocalMessages() {
+    if (!activeChatObj) return;
+    const msgs = getLocalMessages();
+    const container = document.getElementById('message-container');
+    container.innerHTML = "";
     
-    if(msgs.length > currentMessageCount) {
-        const newMsgs = msgs.slice(currentMessageCount);
-        const container = document.getElementById('message-container');
-        
-        newMsgs.forEach(m => {
-            const isSent = m.sender === currentUser.id;
-            const b = document.createElement('div');
-            b.classList.add('message', isSent ? 'sent' : 'received');
-            b.innerHTML = `${m.text} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
-            container.appendChild(b);
-        });
-        currentMessageCount = msgs.length;
-        container.scrollTop = container.scrollHeight;
+    msgs.forEach(m => {
+        const isSent = m.sender === currentUser.id;
+        const b = document.createElement('div');
+        b.classList.add('message', isSent ? 'sent' : 'received');
+        b.innerHTML = `${m.text} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
+        container.appendChild(b);
+    });
+    container.scrollTop = container.scrollHeight;
+}
+
+function appendSingleMessageUI(m) {
+    const isSent = m.sender === currentUser.id;
+    const container = document.getElementById('message-container');
+    const b = document.createElement('div');
+    b.classList.add('message', isSent ? 'sent' : 'received', 'fade-in');
+    b.innerHTML = `${m.text} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
+    container.appendChild(b);
+    container.scrollTop = container.scrollHeight;
+}
+
+function handleIncomingMessage(topic, payload) {
+    if (activeChatObj) {
+        const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
+        if (topic === roomId) {
+            // Save and render it
+            if (saveLocalMessage(roomId, payload)) {
+                appendSingleMessageUI(payload);
+            }
+        }
     }
 }
 
 DOM.backBtn.addEventListener('click', () => {
     DOM.chatView.classList.remove('open');
-    clearInterval(chatPollingTimer);
+    if (mqttClient && activeChatObj) {
+        const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
+        mqttClient.unsubscribe(roomId);
+    }
     activeChatObj = null;
 });
 
 // --- Sending messages ---
+
 document.getElementById('send-btn').addEventListener('click', sendMessage);
 document.getElementById('message-input').addEventListener('keypress', (e) => {
     if(e.key === 'Enter') sendMessage();
 });
 
-async function sendMessage() {
+function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
-    if(!text || !activeChatObj) return;
+    if(!text || !activeChatObj || !mqttClient) return;
     input.value = ""; // Clear early
     
     const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
-    let msgsData = await puter.kv.get(roomId);
-    let msgsStr = typeof msgsData === 'string' ? msgsData : JSON.stringify(msgsData || "[]");
-    let msgs = msgsData ? JSON.parse(msgsStr) : [];
     
-    msgs.push({
+    const msgPayload = {
+        msgId: 'msg_' + Math.random().toString(36).substr(2, 9),
         sender: currentUser.id,
         text: text,
         timestamp: Date.now()
-    });
+    };
     
-    await puter.kv.set(roomId, JSON.stringify(msgs));
-    pollMessages(); // Force immediate update
+    // Save locally and render instantly (optimistic UI)
+    if (saveLocalMessage(roomId, msgPayload)) {
+        appendSingleMessageUI(msgPayload);
+    }
+    
+    // Broadcast to the other person instantly via MQTT WebSockets
+    mqttClient.publish(roomId, JSON.stringify(msgPayload), { qos: 1 });
 }
 
 // Start the app sequence
