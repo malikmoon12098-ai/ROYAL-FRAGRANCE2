@@ -415,7 +415,76 @@ p {
     object-fit: cover;
 }
 
+/* Gender Toggle Buttons */
+.gender-toggle {
+    margin-bottom: 25px;
+}
 
+.toggle-btn {
+    padding: 10px 25px;
+    border-radius: 50px;
+    border: 2px solid var(--border-glass);
+    background: transparent;
+    color: var(--text-dim);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+/* Avatar Editor Grid System */
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding-bottom: 8px;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.choices-grid::-webkit-scrollbar {
+    width: 4px;
+}
+.choices-grid::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+}
+
+.choice-item {
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    overflow: hidden;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+}
+
+.choice-item:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.choice-item.active {
+    border-color: var(--primary);
+    background: rgba(79, 176, 135, 0.1);
+}
+
+.choice-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
 
 /* Chat List */
 #chat-list-container {

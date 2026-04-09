@@ -20,6 +20,8 @@ const DOM = {
     editorPreviewImg: document.getElementById('editor-preview-img'),
     editorCloseBtn: document.getElementById('editor-close-btn'),
     saveAvatarBtn: document.getElementById('save-avatar-btn'),
+    choicesGrid: document.getElementById('choices-grid'),
+    categoryTabs: document.getElementById('category-tabs'),
     avatarPreviewImg: document.getElementById('avatar-preview-img'),
     avatarPlaceholderIcon: document.getElementById('avatar-placeholder-icon'),
     avatarStatusText: document.getElementById('avatar-status-text'),
@@ -82,34 +84,47 @@ function showScreen(screenName) {
 // --- M-Chat Premium Character Creator (Bitmoji Style) ---
 
 const AVATAR_OPTIONS = {
-    top: ["longHair", "shortHair", "frizzle", "shaggy", "bob", "curly", "dreads", "frida", "fro", "turban", "winterHat01"],
-    skinColor: ["624133", "edb98a", "f8d25c", "fd9841", "ffdbac", "d08b5b", "ae5d29"],
-    clothing: ["blazerAndShirt", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "sweater"],
+    maleTop: ["shortHair", "frizzle", "shaggy", "turban", "winterHat01", "dreads", "fro", "theCaesar", "shortCurly", "shortFlat", "shortRound", "shortWaved", "sides", "theCaesarAndSidePart"],
+    femaleTop: ["longHair", "bob", "curly", "frida", "fro", "shaggy", "turban", "longHairCurly", "longHairStraight", "bigHair", "bun", "curvy", "miaWallace", "notTooLong", "straight01", "straight02"],
+    hairColor: ["2c1b18", "4a312c", "724133", "a55728", "b58143", "d6b370", "724133", "4a312c"],
+    skinColor: ["624133", "8d5524", "c68642", "e0ac69", "f1c27d", "ffdbac", "edb98a"],
+    clothing: ["blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck"],
     accessories: ["none", "kurt", "prescription01", "prescription02", "round", "sunglasses", "wayfarers"],
-    facialHair: ["none", "beardMedium", "beardLight", "beardMajestic", "moustachFancy", "mousacheMagnum"],
-    mouth: ["smile", "serious", "grimace", "default", "eating", "twinkle"]
+    beards: ["none", "beardMedium", "beardLight", "beardMajestic", "beardSmall", "beardThick"],
+    moustaches: ["none", "moustachFancy", "moustacheMagnum", "moustacheSmall", "moustacheThin"],
+    mouth: ["smile", "serious", "grimace", "default", "eating", "twinkle", "concerned", "disbelief", "sad", "tongue"]
 };
 
 let currentAvatarState = {
+    gender: "male",
     top: 0,
-    skinColor: 4, // Default light/medium skin
+    hairColor: 0,
+    skinColor: 4, 
     clothing: 1,
     accessories: 0,
-    facialHair: 0,
+    facialHair: "none", 
     mouth: 0
 };
 
-function generateAvatarUrl() {
-    const s = currentAvatarState;
+let currentCategory = "top";
+
+function generateAvatarUrl(customState = null) {
+    const s = customState || currentAvatarState;
     const baseUrl = "https://api.dicebear.com/7.x/avataaars/svg";
+    
+    // Choose pool based on gender
+    const topVal = s.gender === "male" ? AVATAR_OPTIONS.maleTop[s.top] : AVATAR_OPTIONS.femaleTop[s.top];
+    const facialHairVal = s.gender === "male" ? s.facialHair : "none";
+
     const params = new URLSearchParams({
-        top: AVATAR_OPTIONS.top[s.top],
+        top: topVal,
+        hairColor: AVATAR_OPTIONS.hairColor[s.hairColor],
         skinColor: AVATAR_OPTIONS.skinColor[s.skinColor],
         clothing: AVATAR_OPTIONS.clothing[s.clothing],
-        accessories: AVATAR_OPTIONS.accessories[s.accessories],
-        facialHair: AVATAR_OPTIONS.facialHair[s.facialHair],
+        accessories: (AVATAR_OPTIONS.accessories[s.accessories] === "none" ? "" : AVATAR_OPTIONS.accessories[s.accessories]),
+        facialHair: (facialHairVal === "none" ? "" : facialHairVal),
         mouth: AVATAR_OPTIONS.mouth[s.mouth],
-        backgroundColor: "b6e3f4" // Nice blue background
+        backgroundColor: "b6e3f4"
     });
     return `${baseUrl}?${params.toString()}`;
 }
@@ -118,16 +133,68 @@ function updateEditorPreview() {
     DOM.editorPreviewImg.src = generateAvatarUrl();
 }
 
+function renderChoicesGrid() {
+    const grid = DOM.choicesGrid;
+    grid.innerHTML = ""; // Clear
+    
+    let pool = [];
+    let stateKey = currentCategory;
+
+    if (currentCategory === "top") {
+        pool = currentAvatarState.gender === "male" ? AVATAR_OPTIONS.maleTop : AVATAR_OPTIONS.femaleTop;
+    } else if ((currentCategory === "beards" || currentCategory === "moustaches") && currentAvatarState.gender === "female") {
+        grid.innerHTML = "<p style='grid-column: 1/-1; text-align:center; color:gray; font-size:0.8rem;'>Not available for female</p>";
+        return;
+    } else {
+        pool = AVATAR_OPTIONS[currentCategory];
+    }
+
+    pool.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        
+        // Active check
+        const isActive = (currentCategory === "beards" || currentCategory === "moustaches") 
+                         ? currentAvatarState.facialHair === item 
+                         : currentAvatarState[currentCategory] === index;
+
+        itemDiv.className = `choice-item ${isActive ? 'active' : ''}`;
+        
+        // Thumbnail URL
+        const thumbState = { ...currentAvatarState };
+        if (currentCategory === "beards" || currentCategory === "moustaches") {
+            thumbState.facialHair = item;
+        } else {
+            thumbState[currentCategory] = index;
+        }
+        
+        const thumbUrl = generateAvatarUrl(thumbState);
+        itemDiv.innerHTML = `<img src="${thumbUrl}" loading="lazy">`;
+        
+        itemDiv.onclick = () => {
+            if (currentCategory === "beards" || currentCategory === "moustaches") {
+                currentAvatarState.facialHair = item;
+            } else {
+                currentAvatarState[currentCategory] = index;
+            }
+            updateEditorPreview();
+            renderChoicesGrid();
+        };
+        grid.appendChild(itemDiv);
+    });
+}
+
 // Open Editor
 DOM.createAvatarBtn.addEventListener('click', () => {
     isRetakingAvatar = false;
     DOM.avatarEditorOverlay.style.display = 'block';
+    renderChoicesGrid();
     updateEditorPreview();
 });
 
 DOM.editRetakeAvatarBtn.addEventListener('click', () => {
     isRetakingAvatar = true;
     DOM.avatarEditorOverlay.style.display = 'block';
+    renderChoicesGrid();
     updateEditorPreview();
 });
 
@@ -135,15 +202,40 @@ DOM.editorCloseBtn.addEventListener('click', () => {
     DOM.avatarEditorOverlay.style.display = 'none';
 });
 
-// Attribute Buttons Logic
-document.querySelectorAll('.attribute-btn').forEach(btn => {
+// Category Tabs Logic
+document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        const attr = btn.dataset.attr;
-        const total = AVATAR_OPTIONS[attr].length;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCategory = btn.dataset.cat;
+        renderChoicesGrid();
+    });
+});
+
+// Gender Toggle Logic
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const gender = btn.dataset.gender;
+        currentAvatarState.gender = gender;
+        currentAvatarState.top = 0; // Reset hair to avoid index mismatch
         
-        // Cycle Index
-        currentAvatarState[attr] = (currentAvatarState[attr] + 1) % total;
+        document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Hide/Show Beard & Moustache tabs for Female
+        document.querySelectorAll('.tab-btn[data-cat="beards"], .tab-btn[data-cat="moustaches"]').forEach(tab => {
+            tab.style.display = gender === 'female' ? 'none' : 'inline-block';
+        });
+
+        // If one of the hidden tabs was active, switch to Hairstyle
+        if (gender === 'female' && (currentCategory === 'beards' || currentCategory === 'moustaches')) {
+            currentCategory = "top";
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.tab-btn[data-cat="top"]').classList.add('active');
+        }
+
         updateEditorPreview();
+        renderChoicesGrid();
     });
 });
 

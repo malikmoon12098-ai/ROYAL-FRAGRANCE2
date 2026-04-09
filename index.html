@@ -65,42 +65,39 @@
             <button id="editor-close-btn" class="icon-btn">✕</button>
         </nav>
 
-        <div class="editor-container" style="padding:20px; display:flex; flex-direction:column; align-items:center;">
-            <!-- Big Preview -->
-            <div id="editor-preview-box" style="width:180px; height:180px; border-radius:50%; background:rgba(255,255,255,0.05); border:4px solid var(--primary); margin-bottom:30px; overflow:hidden;">
-                <img id="editor-preview-img" src="" style="width:100%; height:100%;" alt="Preview">
-            </div>
-
-            <!-- Editor Options Grid -->
-            <div class="options-grid" style="width:100%; max-width:400px; display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-                <div class="option-item">
-                    <label style="font-size:0.8rem; color:var(--text-dim);">Hairstyle</label>
-                    <button class="attribute-btn" data-attr="top" data-action="next">Baal Badlein 💇‍♂️</button>
+        <div class="editor-container" style="padding:20px; display:flex; flex-direction:column; align-items:center; height:calc(100% - 60px);">
+            <!-- Top Section: Preview & Gender -->
+            <div class="editor-top-section" style="display:flex; flex-direction:column; align-items:center; width:100%; padding-bottom:20px; border-bottom:1px solid var(--border-glass);">
+                <div id="editor-preview-box" style="width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,0.05); border:3px solid var(--primary); margin-bottom:15px; overflow:hidden;">
+                    <img id="editor-preview-img" src="" style="width:100%; height:100%;" alt="Preview">
                 </div>
-                <div class="option-item">
-                    <label style="font-size:0.8rem; color:var(--text-dim);">Skin Color</label>
-                    <button class="attribute-btn" data-attr="skinColor" data-action="next">Rang Badlein 🎨</button>
-                </div>
-                <div class="option-item">
-                    <label style="font-size:0.8rem; color:var(--text-dim);">Clothing</label>
-                    <button class="attribute-btn" data-attr="clothing" data-action="next">Kaprey 👕</button>
-                </div>
-                <div class="option-item">
-                    <label style="font-size:0.8rem; color:var(--text-dim);">Accessories</label>
-                    <button class="attribute-btn" data-attr="accessories" data-action="next">Glasses/Hat 🕶️</button>
-                </div>
-                <div class="option-item">
-                    <label style="font-size:0.8rem; color:var(--text-dim);">Facial Hair</label>
-                    <button class="attribute-btn" data-attr="facialHair" data-action="next">Dhairi/Moochen 🧔</button>
-                </div>
-                <div class="option-item">
-                    <label style="font-size:0.8rem; color:var(--text-dim);">Mood</label>
-                    <button class="attribute-btn" data-attr="mouth" data-action="next">Smile / Cool 😎</button>
+                
+                <div class="gender-toggle" style="display:flex; gap:10px;">
+                    <button class="toggle-btn active" data-gender="male" id="male-toggle">Male 👦</button>
+                    <button class="toggle-btn" data-gender="female" id="female-toggle">Female 👧</button>
                 </div>
             </div>
 
-            <button id="save-avatar-btn" class="primary-btn" style="margin-top:40px; max-width:300px;">Save My Avatar</button>
-            <p style="color:var(--text-dim); font-size:0.7rem; margin-top:15px;">Character Creator | 100% Stable & Offline</p>
+            <!-- Middle Section: Category Tabs (Scrollable) -->
+            <div class="category-tabs" id="category-tabs" style="width:100%; display:flex; gap:20px; overflow-x:auto; padding:15px 0; border-bottom:1px solid var(--border-glass); white-space:nowrap;">
+                <button class="tab-btn active" data-cat="top">Hairstyle 💇‍♂️</button>
+                <button class="tab-btn" data-cat="hairColor">Hair Color 🎨</button>
+                <button class="tab-btn" data-cat="skinColor">Skin Tone 🤝</button>
+                <button class="tab-btn" data-cat="clothing">Outfits 👕</button>
+                <button class="tab-btn" data-cat="accessories">Glasses 🕶️</button>
+                <button class="tab-btn" data-cat="beards">Beard 🧔</button>
+                <button class="tab-btn" data-cat="moustaches">Moustache 👨‍🎨</button>
+                <button class="tab-btn" data-cat="mouth">Mood 😎</button>
+            </div>
+
+            <!-- Bottom Section: Choice Grid (Scrollable) -->
+            <div id="choices-grid" class="choices-grid" style="flex:1; width:100%; padding:20px 0; overflow-y:auto; display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+                <!-- Dynamically filled -->
+            </div>
+
+            <div class="editor-footer" style="width:100%; padding-top:15px; border-top:1px solid var(--border-glass); display:flex; gap:12px;">
+                <button id="save-avatar-btn" class="primary-btn">Save Avatar</button>
+            </div>
         </div>
     </div>
     <!-- Registration Success Screen -->
