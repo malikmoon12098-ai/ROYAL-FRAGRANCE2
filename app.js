@@ -114,10 +114,6 @@ document.getElementById('pwa-install-btn').onclick = async () => {
     deferredPrompt = null;
 };
 
-document.getElementById('skip-install-btn').onclick = () => {
-    startBootFlow();
-};
-
 // --- Screen Switching Logic ---
 
 function showScreen(screenName) {
