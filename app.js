@@ -29,7 +29,20 @@ const DOM = {
     editAvatarPreviewImg: document.getElementById('edit-avatar-preview-img'),
     editNameInput: document.getElementById('edit-name-input'),
     cancelEditBtn: document.getElementById('cancel-edit-btn'),
-    saveEditBtn: document.getElementById('save-edit-btn')
+    saveEditBtn: document.getElementById('save-edit-btn'),
+    editZoomSlider: document.getElementById('edit-zoom-slider'),
+    editYSlider: document.getElementById('edit-y-slider'),
+    editGalleryBtn: document.getElementById('edit-gallery-btn'),
+    editGalleryInput: document.getElementById('edit-gallery-input'),
+    onboardingZoomSlider: document.getElementById('onboarding-zoom-slider'),
+    onboardingYSlider: document.getElementById('onboarding-y-slider'),
+    onboardingGalleryBtn: document.getElementById('onboarding-gallery-btn'),
+    onboardingGalleryInput: document.getElementById('onboarding-gallery-input'),
+    attachBtn: document.getElementById('attach-btn'),
+    chatFileInput: document.getElementById('chat-file-input'),
+    imagePreviewArea: document.getElementById('image-preview-container'),
+    imagePreviewImg: document.getElementById('image-preview-img'),
+    closePreviewBtn: document.getElementById('close-preview-btn')
 };
 
 let currentUser = null;
@@ -92,16 +105,78 @@ function updateOnboardingAvatar(gender) {
     });
 }
 
+// Onboarding adjust logic
+if (DOM.onboardingZoomSlider) {
+    DOM.onboardingZoomSlider.oninput = (e) => {
+        const val = e.target.value;
+        DOM.avatarPreviewImg.style.transform = `scale(${val}) translateY(${DOM.onboardingYSlider.value}px)`;
+    };
+    DOM.onboardingYSlider.oninput = (e) => {
+        const val = e.target.value;
+        DOM.avatarPreviewImg.style.transform = `scale(${DOM.onboardingZoomSlider.value}) translateY(${val}px)`;
+    };
+    DOM.onboardingGalleryBtn.onclick = () => DOM.onboardingGalleryInput.click();
+    DOM.onboardingGalleryInput.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const dataUrl = event.target.result;
+            DOM.avatarPreviewImg.src = dataUrl;
+            generatedAvatarUrl = dataUrl;
+        };
+        reader.readAsDataURL(file);
+    };
+}
+
 function updateEditAvatar(gender) {
     const url = DEFAULT_AVATARS[gender];
     DOM.editAvatarPreviewImg.src = url;
     DOM.editAvatarPreviewImg.dataset.newUrl = url;
+    
+    // Reset adjustments for default avatars
+    DOM.editZoomSlider.value = 1.7;
+    DOM.editYSlider.value = 0;
+    currentZoom = 1.7;
+    currentY = 0;
+    applyAvatarAdjustments();
     
     // Update active UI state
     document.querySelectorAll('#edit-profile-modal .toggle-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.gender === gender);
     });
 }
+
+function applyAvatarAdjustments() {
+    if (DOM.editAvatarPreviewImg) {
+        DOM.editAvatarPreviewImg.style.transform = `scale(${currentZoom}) translateY(${currentY}px)`;
+    }
+}
+
+// Sliders logic
+DOM.editZoomSlider.oninput = (e) => {
+    currentZoom = e.target.value;
+    applyAvatarAdjustments();
+};
+DOM.editYSlider.oninput = (e) => {
+    currentY = e.target.value;
+    applyAvatarAdjustments();
+};
+
+// Gallery logic
+DOM.editGalleryBtn.onclick = () => DOM.editGalleryInput.click();
+DOM.editGalleryInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const dataUrl = event.target.result;
+        DOM.editAvatarPreviewImg.src = dataUrl;
+        DOM.editAvatarPreviewImg.dataset.newUrl = dataUrl;
+        // Don't reset sliders for gallery pics, let user adjust them
+    };
+    reader.readAsDataURL(file);
+};
 
 // Event Listeners for onboarding
 document.getElementById('onboarding-male-btn').onclick = () => updateOnboardingAvatar('male');
@@ -113,6 +188,8 @@ document.getElementById('edit-female-btn').onclick = () => updateEditAvatar('fem
 
 // Initialize default
 generatedAvatarUrl = DEFAULT_AVATARS.male;
+let currentZoom = 1.7;
+let currentY = 0;
 
 
 // --- Account Generation ---
@@ -139,6 +216,8 @@ DOM.generateBtn.addEventListener('click', async () => {
         id: uniqueIdString,
         name: name,
         avatar: generatedAvatarUrl,
+        avatarZoom: DOM.onboardingZoomSlider ? parseFloat(DOM.onboardingZoomSlider.value) : 1.7,
+        avatarY: DOM.onboardingYSlider ? parseFloat(DOM.onboardingYSlider.value) : 0,
         createdAt: new Date().toISOString()
     };
 
@@ -162,6 +241,7 @@ function loadMainApp() {
     DOM.myNameDisplay.innerText = currentUser.name;
     DOM.myIdDisplay.innerText = "ID: " + currentUser.id;
     DOM.myAvatar.src = currentUser.avatar;
+    DOM.myAvatar.style.transform = `scale(${currentUser.avatarZoom || 1.7}) translateY(${currentUser.avatarY || 0}px)`;
 
     showScreen('app');
     
@@ -192,7 +272,9 @@ function initMQTT() {
         const profileStr = JSON.stringify({
             id: currentUser.id,
             name: currentUser.name,
-            avatar: currentUser.avatar
+            avatar: currentUser.avatar,
+            avatarZoom: currentUser.avatarZoom || 1.7,
+            avatarY: currentUser.avatarY || 0
         });
         mqttClient.publish(`mchat/directory/${currentUser.id}`, profileStr, { retain: true });
 
@@ -221,12 +303,14 @@ function getChatRoomId(id1, id2) {
 
 // --- Chat List & Inbox Utilities ---
 
-function updateChatList(id, name, avatar, lastText) {
+function updateChatList(id, name, avatar, lastText, avatarZoom, avatarY) {
     if (!chatList[id]) {
-        chatList[id] = { id, name, avatar, lastMessage: "", timestamp: Date.now() };
+        chatList[id] = { id, name, avatar, lastMessage: "", timestamp: Date.now(), avatarZoom: 1.7, avatarY: 0 };
     }
     if (name) chatList[id].name = name;
     if (avatar) chatList[id].avatar = avatar;
+    if (avatarZoom !== undefined) chatList[id].avatarZoom = avatarZoom;
+    if (avatarY !== undefined) chatList[id].avatarY = avatarY;
     if (lastText !== undefined) {
         chatList[id].lastMessage = lastText;
         chatList[id].timestamp = Date.now();
@@ -252,11 +336,11 @@ function renderChatList() {
         div.className = 'chat-item ripple';
         div.onclick = () => openChatView(c.name, c.id, c.avatar);
         
-        const timeStr = new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const timeStr = new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
         
         div.innerHTML = `
             <div class="avatar-box">
-                <img src="${c.avatar}" alt="${c.name}">
+                <img src="${c.avatar}" alt="${c.name}" style="transform: scale(${c.avatarZoom || 1.7}) translateY(${c.avatarY || 0}px)">
             </div>
             <div class="chat-info">
                 <div class="chat-top">
@@ -295,14 +379,14 @@ function startNewChat() {
                 mqttClient.removeListener('message', directoryListener);
                 
                 // Add to Chat List
-                updateChatList(profile.id, profile.name, profile.avatar, "");
+                updateChatList(profile.id, profile.name, profile.avatar, "", profile.avatarZoom, profile.avatarY);
                 
                 // Reset UI & Open Chat
                 document.getElementById('new-chat-input').value = "";
                 addBtn.innerText = "Start Chat";
                 addBtn.disabled = false;
                 
-                openChatView(profile.name, profile.id, profile.avatar);
+                openChatView(profile.name, profile.id, profile.avatar, profile.avatarZoom, profile.avatarY);
             } catch(e) {}
         }
     };
@@ -324,10 +408,12 @@ function startNewChat() {
 
 // --- Chat View & Messaging ---
 
-function openChatView(name, id, avatar) {
-    activeChatObj = { id, name, avatar };
+function openChatView(name, id, avatar, zoom, y) {
+    activeChatObj = { id, name, avatar, zoom, y };
     document.getElementById('active-chat-name').innerText = name;
-    document.getElementById('active-chat-avatar').src = avatar;
+    const mini = document.getElementById('active-chat-avatar');
+    mini.src = avatar;
+    mini.style.transform = `scale(${zoom || 1.7}) translateY(${y || 0}px)`;
     DOM.chatView.classList.add('open');
     
     // Just render stored history. We don't subscribe to a room anymore!
@@ -364,7 +450,16 @@ function renderLocalMessages() {
         const isSent = m.senderId === currentUser.id;
         const b = document.createElement('div');
         b.classList.add('message', isSent ? 'sent' : 'received');
-        b.innerHTML = `${m.text} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
+        
+        let contentHtml = "";
+        if (m.image) {
+            contentHtml += `<img src="${m.image}" style="width:100%; border-radius:8px; margin-bottom:5px; display:block;">`;
+        }
+        if (m.text) {
+            contentHtml += `<div>${m.text}</div>`;
+        }
+        
+        b.innerHTML = `${contentHtml} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}</span>`;
         container.appendChild(b);
     });
     container.scrollTop = container.scrollHeight;
@@ -375,19 +470,39 @@ function appendSingleMessageUI(m) {
     const container = document.getElementById('message-container');
     const b = document.createElement('div');
     b.classList.add('message', isSent ? 'sent' : 'received', 'fade-in');
-    b.innerHTML = `${m.text} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>`;
+    
+    let contentHtml = "";
+    if (m.image) {
+        contentHtml += `<img src="${m.image}" style="width:100%; border-radius:8px; margin-bottom:5px; display:block;">`;
+    }
+    if (m.text) {
+        contentHtml += `<div>${m.text}</div>`;
+    }
+    
+    b.innerHTML = `${contentHtml} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}</span>`;
     container.appendChild(b);
     container.scrollTop = container.scrollHeight;
 }
 
-function handleInboxMessage(payload) {
-    const roomId = getChatRoomId(currentUser.id, payload.senderId);
-    
+    // Handle Delete History Signal
+    if (payload.type === "DELETE_HISTORY") {
+        const friendRoomId = getChatRoomId(currentUser.id, payload.senderId);
+        localStorage.removeItem(friendRoomId);
+        // Clear last message in chat list too
+        updateChatList(payload.senderId, payload.senderName, payload.senderAvatar, "Chat history cleared", payload.senderAvatarZoom, payload.senderAvatarY);
+        // If viewing this chat, re-render (will show empty)
+        if (activeChatObj && activeChatObj.id === payload.senderId) {
+            renderLocalMessages();
+        }
+        return;
+    }
+
     // Save to device message history
     if (saveLocalMessage(roomId, payload)) {
         
         // WhatsApp Logic: Ensure this sender is in our Chat List Inbox
-        updateChatList(payload.senderId, payload.senderName, payload.senderAvatar, payload.text);
+        const previewText = payload.image ? "📷 Photo" : payload.text;
+        updateChatList(payload.senderId, payload.senderName, payload.senderAvatar, previewText, payload.senderAvatarZoom, payload.senderAvatarY);
         
         // If we are currently actively looking at their chat, render the bubble
         if (activeChatObj && activeChatObj.id === payload.senderId) {
@@ -397,6 +512,26 @@ function handleInboxMessage(payload) {
 }
 
 DOM.backBtn.addEventListener('click', () => {
+    if (activeChatObj && mqttClient) {
+        // WhatsApp Ephemeral Style: Delete history on close
+        const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
+        localStorage.removeItem(roomId);
+        
+        // Signal the other person to also delete their side
+        const deleteSignal = {
+            type: "DELETE_HISTORY",
+            senderId: currentUser.id,
+            senderName: currentUser.name,
+            senderAvatar: currentUser.avatar,
+            senderAvatarZoom: currentUser.avatarZoom || 1.7,
+            senderAvatarY: currentUser.avatarY || 0,
+            timestamp: Date.now()
+        };
+        mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deleteSignal));
+        
+        // Update chat list preview
+        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "Chat history cleared", activeChatObj.avatarZoom, activeChatObj.avatarY);
+    }
     DOM.chatView.classList.remove('open');
     activeChatObj = null;
 });
@@ -406,11 +541,36 @@ document.getElementById('message-input').addEventListener('keypress', (e) => {
     if(e.key === 'Enter') sendMessage();
 });
 
+// --- Chat Image Handling Logic ---
+let pendingImage = null;
+
+DOM.attachBtn.onclick = () => DOM.chatFileInput.click();
+DOM.chatFileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        pendingImage = event.target.result;
+        DOM.imagePreviewImg.src = pendingImage;
+        DOM.imagePreviewArea.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+};
+
+DOM.closePreviewBtn.onclick = () => {
+    pendingImage = null;
+    DOM.imagePreviewArea.style.display = "none";
+    DOM.chatFileInput.value = "";
+};
+
 function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
-    if(!text || !activeChatObj || !mqttClient) return;
-    input.value = ""; // Clear
+    
+    if(!text && !pendingImage) return; // Need at least one
+    if(!activeChatObj || !mqttClient) return;
+
+    input.value = ""; // Clear text
     
     const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
     
@@ -419,15 +579,24 @@ function sendMessage() {
         senderId: currentUser.id,
         senderName: currentUser.name,
         senderAvatar: currentUser.avatar,
+        senderAvatarZoom: currentUser.avatarZoom || 1.7,
+        senderAvatarY: currentUser.avatarY || 0,
         text: text,
+        image: pendingImage, // Attach image if present
         timestamp: Date.now()
     };
+    
+    // Clear Image Preview
+    pendingImage = null;
+    DOM.imagePreviewArea.style.display = "none";
+    DOM.chatFileInput.value = "";
     
     // Save my sent message locally immediately (optimistic UI)
     if (saveLocalMessage(roomId, msgPayload)) {
         appendSingleMessageUI(msgPayload);
         // Update my own chat list preview
-        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, text);
+        const previewText = msgPayload.image ? "📷 Photo" : msgPayload.text;
+        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, previewText, activeChatObj.avatarZoom, activeChatObj.avatarY);
     }
     
     // Publish to FRIEND'S specific Inbox Topic!
@@ -496,6 +665,14 @@ if(DOM.settingsBtn) {
             DOM.editNameInput.value = currentUser.name;
             DOM.editAvatarPreviewImg.src = currentUser.avatar;
             DOM.editAvatarPreviewImg.dataset.newUrl = "";
+            
+            // Set sliders from current user data
+            currentZoom = currentUser.avatarZoom || 1.7;
+            currentY = currentUser.avatarY || 0;
+            DOM.editZoomSlider.value = currentZoom;
+            DOM.editYSlider.value = currentY;
+            applyAvatarAdjustments();
+            
             DOM.editProfileModal.style.display = 'flex';
         }
     });
@@ -514,19 +691,26 @@ if(DOM.settingsBtn) {
             currentUser.avatar = newAvatar;
         }
         
+        // Save adjustments
+        currentUser.avatarZoom = currentZoom;
+        currentUser.avatarY = currentY;
+        
         // Save locally
         localStorage.setItem('mchat_currentUser', JSON.stringify(currentUser));
         
         // Update UI Header
         DOM.myNameDisplay.innerText = currentUser.name;
         DOM.myAvatar.src = currentUser.avatar;
+        DOM.myAvatar.style.transform = `scale(${currentUser.avatarZoom}) translateY(${currentUser.avatarY}px)`;
         
         // Republish to global directory with retain
         if (mqttClient) {
             const profileStr = JSON.stringify({
                 id: currentUser.id,
                 name: currentUser.name,
-                avatar: currentUser.avatar
+                avatar: currentUser.avatar,
+                avatarZoom: currentUser.avatarZoom,
+                avatarY: currentUser.avatarY
             });
             mqttClient.publish(`mchat/directory/${currentUser.id}`, profileStr, { retain: true });
         }
