@@ -483,7 +483,9 @@ function appendSingleMessageUI(m) {
     container.appendChild(b);
     container.scrollTop = container.scrollHeight;
 }
-
+function handleInboxMessage(payload) {
+    const roomId = getChatRoomId(currentUser.id, payload.senderId);
+    
     // Handle Delete History Signal
     if (payload.type === "DELETE_HISTORY") {
         const friendRoomId = getChatRoomId(currentUser.id, payload.senderId);
