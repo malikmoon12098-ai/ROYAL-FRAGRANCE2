@@ -79,13 +79,32 @@ async function initApp() {
 // Separate boot flow for cleaner logic
 async function startBootFlow() {
     showScreen('splash');
-    const splashDelay = new Promise(res => setTimeout(res, 2000));
+    
+    // Safety Valve: If app sticks on splash for >5s, force move
+    const safetyValve = setTimeout(() => {
+        if (DOM.splash.classList.contains('active')) {
+            console.warn("Safety valve triggered: forcing boot...");
+            finalizeBoot();
+        }
+    }, 5000);
+
+    const splashDelay = new Promise(res => setTimeout(res, 800)); // Shorter delay
     await splashDelay;
     
+    finalizeBoot();
+    clearTimeout(safetyValve);
+}
+
+function finalizeBoot() {
     const localData = localStorage.getItem('mchat_currentUser');
     if (localData) {
-        currentUser = JSON.parse(localData);
-        loadMainApp();
+        try {
+            currentUser = JSON.parse(localData);
+            loadMainApp();
+        } catch(e) {
+            console.error("Local data corrupted:", e);
+            showScreen('onboarding');
+        }
     } else {
         showScreen('onboarding');
     }
@@ -575,6 +594,22 @@ function appendSingleMessageUI(m) {
 function handleInboxMessage(payload) {
     const roomId = getChatRoomId(currentUser.id, payload.senderId);
     
+    // Handle Profile Update Signal
+    if (payload.type === "PROFILE_UPDATE") {
+        updateChatList(payload.id, payload.name, payload.avatar, undefined, payload.avatarZoom, payload.avatarX, payload.avatarY);
+        // If viewing this chat, update the header live
+        if (activeChatObj && activeChatObj.id === payload.id) {
+            document.getElementById('active-chat-name').innerText = payload.name;
+            const mini = document.getElementById('active-chat-avatar');
+            mini.src = payload.avatar;
+            mini.style.transform = `scale(${payload.avatarZoom || 1.7}) translate(${payload.avatarX || 0}px, ${payload.avatarY || 0}px)`;
+            // Update active object state too
+            activeChatObj.name = payload.name;
+            activeChatObj.avatar = payload.avatar;
+        }
+        return;
+    }
+
     // Handle Delete History Signal
     if (payload.type === "DELETE_HISTORY") {
         const friendRoomId = getChatRoomId(currentUser.id, payload.senderId);
@@ -617,25 +652,28 @@ DOM.backBtn.addEventListener('click', () => {
         const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
         const msgs = getLocalMessages();
         
-        // Only trigger global delete if the OTHER person sent at least one message
-        // (i.e., I am the recipient who has now 'viewed' their messages)
-        const hasIncoming = msgs.some(m => m.senderId !== currentUser.id);
-        
-        if (hasIncoming) {
-            localStorage.removeItem(roomId);
+        if (msgs.length > 0) {
+            // 1. Check if we actually viewed something from them
+            const hasIncoming = msgs.some(m => m.senderId !== currentUser.id);
             
-            const deleteSignal = {
-                type: "DELETE_HISTORY",
-                senderId: currentUser.id,
-                senderName: currentUser.name,
-                senderAvatar: currentUser.avatar,
-                senderAvatarZoom: currentUser.avatarZoom || 1.7,
-                senderAvatarX: currentUser.avatarX || 0,
-                senderAvatarY: currentUser.avatarY || 0,
-                timestamp: Date.now()
-            };
-            mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deleteSignal));
+            // 2. Clear our own local history regardless (Chat Session ended)
+            localStorage.removeItem(roomId);
             updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "Chat history cleared", activeChatObj.avatarZoom, activeChatObj.avatarX, activeChatObj.avatarY);
+
+            // 3. If we were the recipient, tell the sender to wipe their side too
+            if (hasIncoming) {
+                const deleteSignal = {
+                    type: "DELETE_HISTORY",
+                    senderId: currentUser.id,
+                    senderName: currentUser.name,
+                    senderAvatar: currentUser.avatar,
+                    senderAvatarZoom: currentUser.avatarZoom || 1.7,
+                    senderAvatarX: currentUser.avatarX || 0,
+                    senderAvatarY: currentUser.avatarY || 0,
+                    timestamp: Date.now()
+                };
+                mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deleteSignal));
+            }
         }
     }
     DOM.chatView.classList.remove('open');
@@ -645,6 +683,24 @@ DOM.backBtn.addEventListener('click', () => {
 document.getElementById('send-btn').addEventListener('click', sendMessage);
 document.getElementById('message-input').addEventListener('keypress', (e) => {
     if(e.key === 'Enter') sendMessage();
+});
+
+// --- Paste Image Support ---
+document.getElementById('message-input').addEventListener('paste', (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                pendingImage = event.target.result;
+                DOM.imagePreviewImg.src = pendingImage;
+                DOM.imagePreviewArea.style.display = "block";
+            };
+            reader.readAsDataURL(blob);
+        }
+    }
 });
 
 // --- Chat Image Handling Logic ---
@@ -840,15 +896,25 @@ if(DOM.settingsBtn) {
         
         // Republish to global directory with retain
         if (mqttClient) {
-            const profileStr = JSON.stringify({
+            const profilePayload = {
+                type: "PROFILE_UPDATE", // Global signal type
                 id: currentUser.id,
                 name: currentUser.name,
                 avatar: currentUser.avatar,
                 avatarZoom: currentUser.avatarZoom,
                 avatarX: currentUser.avatarX,
                 avatarY: currentUser.avatarY
-            });
+            };
+            
+            const profileStr = JSON.stringify(profilePayload);
+            
+            // 1. Update Global Directory
             mqttClient.publish(`mchat/directory/${currentUser.id}`, profileStr, { retain: true });
+            
+            // 2. Push update directly to all existing friends' inboxes
+            Object.keys(chatList).forEach(friendId => {
+                mqttClient.publish(`mchat/inbox/${friendId}`, profileStr);
+            });
         }
         
         DOM.editProfileModal.style.display = 'none';
