@@ -5,7 +5,7 @@ const urlsToCache = [
   './index.html',
   './style.css',
   './app.js',
-  './assets/m-chat-logo.png'
+  './logo.png'
 ];
 
 self.addEventListener('install', event => {
