@@ -21,6 +21,24 @@
 </head>
 <body class="dark-theme">
     
+    <!-- Install Discovery Screen -->
+    <div id="install-screen" class="screen">
+        <div class="onboarding-content fade-in" style="text-align:center;">
+            <div class="logo-box" style="margin-bottom: 30px;">
+                <img src="assets/logo.png" alt="M-Chat Logo" style="width: 100px; filter: drop-shadow(0 0 15px var(--primary));">
+            </div>
+            <h1 style="font-size: 2.22rem; margin-bottom: 10px;">M-Chat</h1>
+            <p style="color: var(--text-dim); margin-bottom: 40px;">Install the app on your device for the best messaging experience.</p>
+            
+            <button id="pwa-install-btn" class="primary-btn" style="width: 100%; margin-bottom: 20px;">
+                Install M-Chat App
+            </button>
+            <button id="skip-install-btn" style="background:none; border:none; color: var(--text-dim); text-decoration: underline; cursor:pointer;">
+                Continue in Browser
+            </button>
+        </div>
+    </div>
+
     <!-- Splash Screen -->
     <div id="splash-screen" class="screen active">
         <div class="splash-content">
@@ -47,9 +65,25 @@
             <!-- Simplified Avatar Step -->
             <div class="avatar-creation-section">
                 <div id="avatar-preview-circle">
-                    <img id="avatar-preview-img" src="assets/avatar_male.png" alt="" style="display:block;">
+                    <img id="avatar-preview-img" src="assets/avatar_male.png" alt="" style="display:block; transform: scale(1.7) translate(0,0);">
                 </div>
-                
+
+                <!-- Adjustment Controls -->
+                <div class="adjustment-controls" style="margin: 15px 0; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display:flex; align-items:center; gap:10px; font-size: 0.8rem; color: var(--text-dim);">
+                        <span style="width:40px;">Zoom</span>
+                        <input type="range" id="onboarding-zoom-slider" min="0.5" max="3" step="0.1" value="1.7" style="flex:1;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; font-size: 0.8rem; color: var(--text-dim);">
+                        <span style="width:40px;">Up/Dn</span>
+                        <input type="range" id="onboarding-y-slider" min="-50" max="50" step="1" value="0" style="flex:1;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; font-size: 0.8rem; color: var(--text-dim);">
+                        <span style="width:40px;">Lt/Rt</span>
+                        <input type="range" id="onboarding-x-slider" min="-50" max="50" step="1" value="0" style="flex:1;">
+                    </div>
+                </div>
+
                 <div class="gender-selection" style="margin-bottom: 25px;">
                     <p style="font-size: 0.9rem; margin-bottom: 12px; color: var(--text-dim);">Select Gender</p>
                     <div class="gender-toggle" style="display:flex; gap:10px; justify-content:center;">
@@ -199,11 +233,15 @@
                 <div class="adjustment-controls" style="margin: 15px 0; display: flex; flex-direction: column; gap: 8px;">
                     <div style="display:flex; align-items:center; gap:10px; font-size: 0.8rem; color: var(--text-dim);">
                         <span style="width:40px;">Zoom</span>
-                        <input type="range" id="edit-zoom-slider" min="1" max="3" step="0.1" value="1.7" style="flex:1;">
+                        <input type="range" id="edit-zoom-slider" min="0.5" max="3" step="0.1" value="1.7" style="flex:1;">
                     </div>
                     <div style="display:flex; align-items:center; gap:10px; font-size: 0.8rem; color: var(--text-dim);">
-                        <span style="width:40px;">Move</span>
+                        <span style="width:40px;">Up/Dn</span>
                         <input type="range" id="edit-y-slider" min="-50" max="50" step="1" value="0" style="flex:1;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px; font-size: 0.8rem; color: var(--text-dim);">
+                        <span style="width:40px;">Lt/Rt</span>
+                        <input type="range" id="edit-x-slider" min="-50" max="50" step="1" value="0" style="flex:1;">
                     </div>
                 </div>
 

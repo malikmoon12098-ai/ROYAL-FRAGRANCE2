@@ -1,4 +1,5 @@
 const DOM = {
+    install: document.getElementById('install-screen'),
     splash: document.getElementById('splash-screen'),
     onboarding: document.getElementById('onboarding-screen'),
     success: document.getElementById('success-screen'),
@@ -32,17 +33,23 @@ const DOM = {
     saveEditBtn: document.getElementById('save-edit-btn'),
     editZoomSlider: document.getElementById('edit-zoom-slider'),
     editYSlider: document.getElementById('edit-y-slider'),
+    editXSlider: document.getElementById('edit-x-slider'),
     editGalleryBtn: document.getElementById('edit-gallery-btn'),
     editGalleryInput: document.getElementById('edit-gallery-input'),
     onboardingZoomSlider: document.getElementById('onboarding-zoom-slider'),
     onboardingYSlider: document.getElementById('onboarding-y-slider'),
+    onboardingXSlider: document.getElementById('onboarding-x-slider'),
     onboardingGalleryBtn: document.getElementById('onboarding-gallery-btn'),
     onboardingGalleryInput: document.getElementById('onboarding-gallery-input'),
     attachBtn: document.getElementById('attach-btn'),
     chatFileInput: document.getElementById('chat-file-input'),
     imagePreviewArea: document.getElementById('image-preview-container'),
     imagePreviewImg: document.getElementById('image-preview-img'),
-    closePreviewBtn: document.getElementById('close-preview-btn')
+    closePreviewBtn: document.getElementById('close-preview-btn'),
+    // Lightbox
+    lightbox: document.getElementById('image-lightbox'),
+    lightboxImg: document.getElementById('lightbox-img'),
+    closeLightboxBtn: document.getElementById('close-lightbox')
 };
 
 let currentUser = null;
@@ -52,32 +59,71 @@ let chatList = JSON.parse(localStorage.getItem('mchat_chatlist')) || {};
 let generatedAvatarUrl = null; // Stores the Ready Player Me avatar URL
 let isRetakingAvatar = false; // Checks if RPM is used for onboarding or edit profile
 
-// --- Initialization ---
+let deferredPrompt = null;
 
 async function initApp() {
     console.log("Initializing M-Chat (Universal Inbox Architecture)...");
     
-    // Minimum splash delay
+    // Check if app is already running in "Native" standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    
+    if (isStandalone) {
+        // Already installed and running as app - go straight to splash
+        startBootFlow();
+    } else {
+        // Running in browser - show Install Screen first
+        showScreen('install');
+    }
+}
+
+// Separate boot flow for cleaner logic
+async function startBootFlow() {
+    showScreen('splash');
     const splashDelay = new Promise(res => setTimeout(res, 2000));
     await splashDelay;
-        
-    const localData = localStorage.getItem('mchat_currentUser');
     
+    const localData = localStorage.getItem('mchat_currentUser');
     if (localData) {
-        // Auto-login
         currentUser = JSON.parse(localData);
         loadMainApp();
     } else {
-        // New user
         showScreen('onboarding');
     }
 }
+
+// Handle PWA Install Prompt
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show install screen if we were waiting for it
+    if (!window.matchMedia('(display-mode: standalone)').matches) {
+       showScreen('install');
+    }
+});
+
+document.getElementById('pwa-install-btn').onclick = async () => {
+    if (!deferredPrompt) {
+        alert("Installation is already in progress or not supported by this browser. Check your browser menu/address bar.");
+        return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+        startBootFlow();
+    }
+    deferredPrompt = null;
+};
+
+document.getElementById('skip-install-btn').onclick = () => {
+    startBootFlow();
+};
 
 // --- Screen Switching Logic ---
 
 function showScreen(screenName) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     
+    if (screenName === 'install') DOM.install.classList.add('active');
     if (screenName === 'splash') DOM.splash.classList.add('active');
     if (screenName === 'onboarding') DOM.onboarding.classList.add('active');
     if (screenName === 'success') DOM.success.classList.add('active');
@@ -113,7 +159,11 @@ if (DOM.onboardingZoomSlider) {
     };
     DOM.onboardingYSlider.oninput = (e) => {
         const val = e.target.value;
-        DOM.avatarPreviewImg.style.transform = `scale(${DOM.onboardingZoomSlider.value}) translateY(${val}px)`;
+        DOM.avatarPreviewImg.style.transform = `scale(${DOM.onboardingZoomSlider.value}) translate(${DOM.onboardingXSlider.value}px, ${val}px)`;
+    };
+    DOM.onboardingXSlider.oninput = (e) => {
+        const val = e.target.value;
+        DOM.avatarPreviewImg.style.transform = `scale(${DOM.onboardingZoomSlider.value}) translate(${val}px, ${DOM.onboardingYSlider.value}px)`;
     };
     DOM.onboardingGalleryBtn.onclick = () => DOM.onboardingGalleryInput.click();
     DOM.onboardingGalleryInput.onchange = (e) => {
@@ -137,8 +187,10 @@ function updateEditAvatar(gender) {
     // Reset adjustments for default avatars
     DOM.editZoomSlider.value = 1.7;
     DOM.editYSlider.value = 0;
+    DOM.editXSlider.value = 0;
     currentZoom = 1.7;
     currentY = 0;
+    currentX = 0;
     applyAvatarAdjustments();
     
     // Update active UI state
@@ -149,7 +201,7 @@ function updateEditAvatar(gender) {
 
 function applyAvatarAdjustments() {
     if (DOM.editAvatarPreviewImg) {
-        DOM.editAvatarPreviewImg.style.transform = `scale(${currentZoom}) translateY(${currentY}px)`;
+        DOM.editAvatarPreviewImg.style.transform = `scale(${currentZoom}) translate(${currentX}px, ${currentY}px)`;
     }
 }
 
@@ -161,6 +213,25 @@ DOM.editZoomSlider.oninput = (e) => {
 DOM.editYSlider.oninput = (e) => {
     currentY = e.target.value;
     applyAvatarAdjustments();
+};
+DOM.editXSlider.oninput = (e) => {
+    currentX = e.target.value;
+    applyAvatarAdjustments();
+};
+
+function openLightbox(src) {
+    DOM.lightboxImg.src = src;
+    DOM.lightbox.style.display = "flex";
+}
+
+function closeLightbox() {
+    DOM.lightbox.style.display = "none";
+}
+
+// Global Lightbox bindings
+DOM.closeLightboxBtn.onclick = closeLightbox;
+DOM.lightbox.onclick = (e) => {
+    if (e.target === DOM.lightbox) closeLightbox();
 };
 
 // Gallery logic
@@ -190,6 +261,7 @@ document.getElementById('edit-female-btn').onclick = () => updateEditAvatar('fem
 generatedAvatarUrl = DEFAULT_AVATARS.male;
 let currentZoom = 1.7;
 let currentY = 0;
+let currentX = 0;
 
 
 // --- Account Generation ---
@@ -217,6 +289,7 @@ DOM.generateBtn.addEventListener('click', async () => {
         name: name,
         avatar: generatedAvatarUrl,
         avatarZoom: DOM.onboardingZoomSlider ? parseFloat(DOM.onboardingZoomSlider.value) : 1.7,
+        avatarX: DOM.onboardingXSlider ? parseFloat(DOM.onboardingXSlider.value) : 0,
         avatarY: DOM.onboardingYSlider ? parseFloat(DOM.onboardingYSlider.value) : 0,
         createdAt: new Date().toISOString()
     };
@@ -241,7 +314,7 @@ function loadMainApp() {
     DOM.myNameDisplay.innerText = currentUser.name;
     DOM.myIdDisplay.innerText = "ID: " + currentUser.id;
     DOM.myAvatar.src = currentUser.avatar;
-    DOM.myAvatar.style.transform = `scale(${currentUser.avatarZoom || 1.7}) translateY(${currentUser.avatarY || 0}px)`;
+    DOM.myAvatar.style.transform = `scale(${currentUser.avatarZoom || 1.7}) translate(${currentUser.avatarX || 0}px, ${currentUser.avatarY || 0}px)`;
 
     showScreen('app');
     
@@ -274,6 +347,7 @@ function initMQTT() {
             name: currentUser.name,
             avatar: currentUser.avatar,
             avatarZoom: currentUser.avatarZoom || 1.7,
+            avatarX: currentUser.avatarX || 0,
             avatarY: currentUser.avatarY || 0
         });
         mqttClient.publish(`mchat/directory/${currentUser.id}`, profileStr, { retain: true });
@@ -303,14 +377,18 @@ function getChatRoomId(id1, id2) {
 
 // --- Chat List & Inbox Utilities ---
 
-function updateChatList(id, name, avatar, lastText, avatarZoom, avatarY) {
+function updateChatList(id, name, avatar, lastText, avatarZoom, avatarX, avatarY) {
+    if (!id) return;
     if (!chatList[id]) {
-        chatList[id] = { id, name, avatar, lastMessage: "", timestamp: Date.now(), avatarZoom: 1.7, avatarY: 0 };
+        chatList[id] = { id, name, avatar, lastMessage: "", timestamp: Date.now(), avatarZoom: 1.7, avatarX: 0, avatarY: 0 };
     }
+    // Always overwrite with newest info if provided
     if (name) chatList[id].name = name;
     if (avatar) chatList[id].avatar = avatar;
     if (avatarZoom !== undefined) chatList[id].avatarZoom = avatarZoom;
+    if (avatarX !== undefined) chatList[id].avatarX = avatarX;
     if (avatarY !== undefined) chatList[id].avatarY = avatarY;
+    
     if (lastText !== undefined) {
         chatList[id].lastMessage = lastText;
         chatList[id].timestamp = Date.now();
@@ -340,7 +418,7 @@ function renderChatList() {
         
         div.innerHTML = `
             <div class="avatar-box">
-                <img src="${c.avatar}" alt="${c.name}" style="transform: scale(${c.avatarZoom || 1.7}) translateY(${c.avatarY || 0}px)">
+                <img src="${c.avatar}" alt="${c.name}" style="transform: scale(${c.avatarZoom || 1.7}) translate(${c.avatarX || 0}px, ${c.avatarY || 0}px)">
             </div>
             <div class="chat-info">
                 <div class="chat-top">
@@ -379,14 +457,14 @@ function startNewChat() {
                 mqttClient.removeListener('message', directoryListener);
                 
                 // Add to Chat List
-                updateChatList(profile.id, profile.name, profile.avatar, "", profile.avatarZoom, profile.avatarY);
+                updateChatList(profile.id, profile.name, profile.avatar, "", profile.avatarZoom, profile.avatarX, profile.avatarY);
                 
                 // Reset UI & Open Chat
                 document.getElementById('new-chat-input').value = "";
                 addBtn.innerText = "Start Chat";
                 addBtn.disabled = false;
                 
-                openChatView(profile.name, profile.id, profile.avatar, profile.avatarZoom, profile.avatarY);
+                openChatView(profile.name, profile.id, profile.avatar, profile.avatarZoom, profile.avatarX, profile.avatarY);
             } catch(e) {}
         }
     };
@@ -408,12 +486,12 @@ function startNewChat() {
 
 // --- Chat View & Messaging ---
 
-function openChatView(name, id, avatar, zoom, y) {
-    activeChatObj = { id, name, avatar, zoom, y };
+function openChatView(name, id, avatar, zoom, x, y) {
+    activeChatObj = { id, name, avatar, zoom, x, y };
     document.getElementById('active-chat-name').innerText = name;
     const mini = document.getElementById('active-chat-avatar');
     mini.src = avatar;
-    mini.style.transform = `scale(${zoom || 1.7}) translateY(${y || 0}px)`;
+    mini.style.transform = `scale(${zoom || 1.7}) translate(${x || 0}px, ${y || 0}px)`;
     DOM.chatView.classList.add('open');
     
     // Just render stored history. We don't subscribe to a room anymore!
@@ -459,7 +537,15 @@ function renderLocalMessages() {
             contentHtml += `<div>${m.text}</div>`;
         }
         
-        b.innerHTML = `${contentHtml} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}</span>`;
+        const timeStr = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
+        b.innerHTML = `${contentHtml} <span class="message-time">${timeStr}</span>`;
+        
+        // Add click listener to image for lightbox
+        const img = b.querySelector('img');
+        if (img) {
+            img.onclick = () => openLightbox(img.src);
+        }
+        
         container.appendChild(b);
     });
     container.scrollTop = container.scrollHeight;
@@ -480,6 +566,13 @@ function appendSingleMessageUI(m) {
     }
     
     b.innerHTML = `${contentHtml} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}</span>`;
+    
+    // Add click listener to image for lightbox
+    const img = b.querySelector('img');
+    if (img) {
+        img.onclick = () => openLightbox(img.src);
+    }
+    
     container.appendChild(b);
     container.scrollTop = container.scrollHeight;
 }
@@ -491,9 +584,13 @@ function handleInboxMessage(payload) {
         const friendRoomId = getChatRoomId(currentUser.id, payload.senderId);
         localStorage.removeItem(friendRoomId);
         // Clear last message in chat list too
-        updateChatList(payload.senderId, payload.senderName, payload.senderAvatar, "Chat history cleared", payload.senderAvatarZoom, payload.senderAvatarY);
-        // If viewing this chat, re-render (will show empty)
+        updateChatList(payload.senderId, payload.senderName, payload.senderAvatar, "Chat history cleared", payload.senderAvatarZoom, payload.senderAvatarX, payload.senderAvatarY);
+        // If viewing this chat, re-render
         if (activeChatObj && activeChatObj.id === payload.senderId) {
+            document.getElementById('active-chat-name').innerText = payload.senderName;
+            const mini = document.getElementById('active-chat-avatar');
+            mini.src = payload.senderAvatar;
+            mini.style.transform = `scale(${payload.senderAvatarZoom || 1.7}) translate(${payload.senderAvatarX || 0}px, ${payload.senderAvatarY || 0}px)`;
             renderLocalMessages();
         }
         return;
@@ -504,10 +601,16 @@ function handleInboxMessage(payload) {
         
         // WhatsApp Logic: Ensure this sender is in our Chat List Inbox
         const previewText = payload.image ? "📷 Photo" : payload.text;
-        updateChatList(payload.senderId, payload.senderName, payload.senderAvatar, previewText, payload.senderAvatarZoom, payload.senderAvatarY);
+        updateChatList(payload.senderId, payload.senderName, payload.senderAvatar, previewText, payload.senderAvatarZoom, payload.senderAvatarX, payload.senderAvatarY);
         
         // If we are currently actively looking at their chat, render the bubble
         if (activeChatObj && activeChatObj.id === payload.senderId) {
+            // Update the live header name/avatar if they changed
+            document.getElementById('active-chat-name').innerText = payload.senderName;
+            const mini = document.getElementById('active-chat-avatar');
+            mini.src = payload.senderAvatar;
+            mini.style.transform = `scale(${payload.senderAvatarZoom || 1.7}) translate(${payload.senderAvatarX || 0}px, ${payload.senderAvatarY || 0}px)`;
+            
             appendSingleMessageUI(payload);
         }
     }
@@ -515,24 +618,29 @@ function handleInboxMessage(payload) {
 
 DOM.backBtn.addEventListener('click', () => {
     if (activeChatObj && mqttClient) {
-        // WhatsApp Ephemeral Style: Delete history on close
         const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
-        localStorage.removeItem(roomId);
+        const msgs = getLocalMessages();
         
-        // Signal the other person to also delete their side
-        const deleteSignal = {
-            type: "DELETE_HISTORY",
-            senderId: currentUser.id,
-            senderName: currentUser.name,
-            senderAvatar: currentUser.avatar,
-            senderAvatarZoom: currentUser.avatarZoom || 1.7,
-            senderAvatarY: currentUser.avatarY || 0,
-            timestamp: Date.now()
-        };
-        mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deleteSignal));
+        // Only trigger global delete if the OTHER person sent at least one message
+        // (i.e., I am the recipient who has now 'viewed' their messages)
+        const hasIncoming = msgs.some(m => m.senderId !== currentUser.id);
         
-        // Update chat list preview
-        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "Chat history cleared", activeChatObj.avatarZoom, activeChatObj.avatarY);
+        if (hasIncoming) {
+            localStorage.removeItem(roomId);
+            
+            const deleteSignal = {
+                type: "DELETE_HISTORY",
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                senderAvatar: currentUser.avatar,
+                senderAvatarZoom: currentUser.avatarZoom || 1.7,
+                senderAvatarX: currentUser.avatarX || 0,
+                senderAvatarY: currentUser.avatarY || 0,
+                timestamp: Date.now()
+            };
+            mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deleteSignal));
+            updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "Chat history cleared", activeChatObj.avatarZoom, activeChatObj.avatarX, activeChatObj.avatarY);
+        }
     }
     DOM.chatView.classList.remove('open');
     activeChatObj = null;
@@ -565,14 +673,47 @@ DOM.closePreviewBtn.onclick = () => {
     DOM.chatFileInput.value = "";
 };
 
-function sendMessage() {
+// --- Image Compression Utility ---
+async function compressImage(base64Str, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = (maxWidth / width) * height;
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+    });
+}
+
+async function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     
-    if(!text && !pendingImage) return; // Need at least one
+    if(!text && !pendingImage) return; 
     if(!activeChatObj || !mqttClient) return;
 
-    input.value = ""; // Clear text
+    input.value = ""; 
+    const currentPendingImage = pendingImage; // Capture it
+    pendingImage = null;
+    DOM.imagePreviewArea.style.display = "none";
+    DOM.chatFileInput.value = "";
+    
+    let processedImage = null;
+    if (currentPendingImage) {
+        processedImage = await compressImage(currentPendingImage);
+    }
     
     const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
     
@@ -582,26 +723,19 @@ function sendMessage() {
         senderName: currentUser.name,
         senderAvatar: currentUser.avatar,
         senderAvatarZoom: currentUser.avatarZoom || 1.7,
+        senderAvatarX: currentUser.avatarX || 0,
         senderAvatarY: currentUser.avatarY || 0,
         text: text,
-        image: pendingImage, // Attach image if present
+        image: processedImage, 
         timestamp: Date.now()
     };
     
-    // Clear Image Preview
-    pendingImage = null;
-    DOM.imagePreviewArea.style.display = "none";
-    DOM.chatFileInput.value = "";
-    
-    // Save my sent message locally immediately (optimistic UI)
     if (saveLocalMessage(roomId, msgPayload)) {
         appendSingleMessageUI(msgPayload);
-        // Update my own chat list preview
         const previewText = msgPayload.image ? "📷 Photo" : msgPayload.text;
-        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, previewText, activeChatObj.avatarZoom, activeChatObj.avatarY);
+        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, previewText, activeChatObj.avatarZoom, activeChatObj.avatarX, activeChatObj.avatarY);
     }
     
-    // Publish to FRIEND'S specific Inbox Topic!
     mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(msgPayload), { qos: 1 });
 }
 
@@ -670,8 +804,10 @@ if(DOM.settingsBtn) {
             
             // Set sliders from current user data
             currentZoom = currentUser.avatarZoom || 1.7;
+            currentX = currentUser.avatarX || 0;
             currentY = currentUser.avatarY || 0;
             DOM.editZoomSlider.value = currentZoom;
+            DOM.editXSlider.value = currentX;
             DOM.editYSlider.value = currentY;
             applyAvatarAdjustments();
             
@@ -695,6 +831,7 @@ if(DOM.settingsBtn) {
         
         // Save adjustments
         currentUser.avatarZoom = currentZoom;
+        currentUser.avatarX = currentX;
         currentUser.avatarY = currentY;
         
         // Save locally
@@ -703,7 +840,7 @@ if(DOM.settingsBtn) {
         // Update UI Header
         DOM.myNameDisplay.innerText = currentUser.name;
         DOM.myAvatar.src = currentUser.avatar;
-        DOM.myAvatar.style.transform = `scale(${currentUser.avatarZoom}) translateY(${currentUser.avatarY}px)`;
+        DOM.myAvatar.style.transform = `scale(${currentUser.avatarZoom}) translate(${currentUser.avatarX}px, ${currentUser.avatarY}px)`;
         
         // Republish to global directory with retain
         if (mqttClient) {
@@ -712,6 +849,7 @@ if(DOM.settingsBtn) {
                 name: currentUser.name,
                 avatar: currentUser.avatar,
                 avatarZoom: currentUser.avatarZoom,
+                avatarX: currentUser.avatarX,
                 avatarY: currentUser.avatarY
             });
             mqttClient.publish(`mchat/directory/${currentUser.id}`, profileStr, { retain: true });
