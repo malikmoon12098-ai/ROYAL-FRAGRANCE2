@@ -193,6 +193,7 @@ p {
     height: 100%;
     object-fit: cover;
     border-radius: 50%;
+    transform: scale(1.4); /* Zoom in to hide white corners of user icons */
 }
 
 .avatar-hint {
@@ -240,12 +241,19 @@ p {
     gap: 15px;
 }
 
-.profile-pic-container img {
+.profile-pic-container {
     width: 45px;
     height: 45px;
     border-radius: 50%;
-    object-fit: cover;
+    overflow: hidden;
     border: 2px solid var(--primary);
+}
+
+.profile-pic-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.4);
 }
 
 .header-title h1 {
@@ -465,11 +473,18 @@ p {
     background: rgba(255,255,255,0.05);
 }
 
-.avatar-box img {
+.avatar-box {
     width: 55px;
     height: 55px;
     border-radius: 50%;
+    overflow: hidden;
+}
+
+.avatar-box img {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
+    transform: scale(1.4);
 }
 
 .chat-info {
@@ -568,10 +583,19 @@ p {
     gap: 10px;
 }
 
-.mini-avatar {
+.mini-avatar-container {
     width: 35px;
     height: 35px;
     border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid var(--primary);
+}
+
+.mini-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scale(1.4);
 }
 
 .chat-header-text h2 {

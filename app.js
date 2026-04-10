@@ -74,8 +74,8 @@ function showScreen(screenName) {
 // --- Simplified Automatic Avatar Logic ---
 
 const DEFAULT_AVATARS = {
-    male: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-    female: "https://api.dicebear.com/7.x/avataaars/svg?seed=Aria"
+    male: "avatar_male.png",
+    female: "avatar_female.png"
 };
 
 let currentGender = "male";
