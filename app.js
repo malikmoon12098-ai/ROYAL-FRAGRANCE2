@@ -74,8 +74,8 @@ function showScreen(screenName) {
 // --- Simplified Automatic Avatar Logic ---
 
 const DEFAULT_AVATARS = {
-    male: "avatar_male.png",
-    female: "avatar_female.png"
+    male: "assets/avatar_male.png",
+    female: "assets/avatar_female.png"
 };
 
 let currentGender = "male";

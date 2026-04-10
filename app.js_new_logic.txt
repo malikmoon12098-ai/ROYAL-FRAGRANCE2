@@ -1,0 +1,48 @@
+// --- Simplified Automatic Avatar Logic ---
+
+// High-quality Flat Design Avatars (Base64 for instant loading on any host)
+const MALE_AVATAR = "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=ffdfbf";
+const FEMALE_AVATAR = "https://api.dicebear.com/7.x/avataaars/svg?seed=Aria&backgroundColor=ffdfbf";
+
+const DEFAULT_AVATARS = {
+    male: MALE_AVATAR,
+    female: FEMALE_AVATAR
+};
+
+let currentGender = "male";
+
+function updateOnboardingAvatar(gender) {
+    currentGender = gender;
+    const url = DEFAULT_AVATARS[gender];
+    DOM.avatarPreviewImg.src = url;
+    DOM.avatarPreviewImg.style.display = "block";
+    generatedAvatarUrl = url;
+    
+    // Update active UI state
+    document.querySelectorAll('#onboarding-screen .toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.gender === gender);
+    });
+}
+
+function updateEditAvatar(gender) {
+    const url = DEFAULT_AVATARS[gender];
+    DOM.editAvatarPreviewImg.src = url;
+    DOM.editAvatarPreviewImg.dataset.newUrl = url;
+    DOM.editAvatarPreviewImg.style.display = "block";
+    
+    // Update active UI state
+    document.querySelectorAll('#edit-profile-modal .toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.gender === gender);
+    });
+}
+
+// Event Listeners for onboarding
+document.getElementById('onboarding-male-btn').onclick = () => updateOnboardingAvatar('male');
+document.getElementById('onboarding-female-btn').onclick = () => updateOnboardingAvatar('female');
+
+// Event Listeners for edit profile
+document.getElementById('edit-male-btn').onclick = () => updateEditAvatar('male');
+document.getElementById('edit-female-btn').onclick = () => updateEditAvatar('female');
+
+// Initialize default
+updateOnboardingAvatar('male');
