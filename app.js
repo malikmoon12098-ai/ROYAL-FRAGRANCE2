@@ -14,17 +14,8 @@ const DOM = {
     myAvatar: document.getElementById('my-profile-pic'),
     backBtn: document.getElementById('back-to-list'),
     chatItemsList: document.getElementById('chat-items-list'),
-    // Avatar Customizer elements
-    createAvatarBtn: document.getElementById('create-avatar-btn'),
-    avatarEditorOverlay: document.getElementById('avatar-editor-overlay'),
-    editorPreviewImg: document.getElementById('editor-preview-img'),
-    editorCloseBtn: document.getElementById('editor-close-btn'),
-    saveAvatarBtn: document.getElementById('save-avatar-btn'),
-    choicesGrid: document.getElementById('choices-grid'),
-    categoryTabs: document.getElementById('category-tabs'),
+    // Avatar elements
     avatarPreviewImg: document.getElementById('avatar-preview-img'),
-    avatarPlaceholderIcon: document.getElementById('avatar-placeholder-icon'),
-    avatarStatusText: document.getElementById('avatar-status-text'),
     // Settings elements
     settingsBtn: document.getElementById('settings-btn'),
     settingsDropdown: document.getElementById('settings-dropdown'),
@@ -36,7 +27,6 @@ const DOM = {
     confirmDeleteBtn: document.getElementById('confirm-delete-btn'),
     editProfileModal: document.getElementById('edit-profile-modal'),
     editAvatarPreviewImg: document.getElementById('edit-avatar-preview-img'),
-    editRetakeAvatarBtn: document.getElementById('edit-retake-avatar-btn'),
     editNameInput: document.getElementById('edit-name-input'),
     cancelEditBtn: document.getElementById('cancel-edit-btn'),
     saveEditBtn: document.getElementById('save-edit-btn')
@@ -81,191 +71,49 @@ function showScreen(screenName) {
     if (screenName === 'app') DOM.app.classList.add('active');
 }
 
-// --- M-Chat Premium Character Creator (Bitmoji Style) ---
+// --- Simplified Automatic Avatar Logic ---
 
-const AVATAR_OPTIONS = {
-    maleTop: ["shortHair", "frizzle", "shaggy", "turban", "winterHat01", "dreads", "fro", "theCaesar", "shortCurly", "shortFlat", "shortRound", "shortWaved", "sides", "theCaesarAndSidePart"],
-    femaleTop: ["longHair", "bob", "curly", "frida", "fro", "shaggy", "turban", "longHairCurly", "longHairStraight", "bigHair", "bun", "curvy", "miaWallace", "notTooLong", "straight01", "straight02"],
-    hairColor: ["2c1b18", "4a312c", "724133", "a55728", "b58143", "d6b370", "724133", "4a312c"],
-    skinColor: ["624133", "8d5524", "c68642", "e0ac69", "f1c27d", "ffdbac", "edb98a"],
-    clothing: ["blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck"],
-    clothing: ["blazerAndShirt", "blazerAndSweater", "collarAndSweater", "graphicShirt", "hoodie", "overall", "shirtCrewNeck", "shirtScoopNeck", "shirtVNeck"],
-    clothingColor: ["262e33", "65c9ff", "5199e4", "25557c", "e6e6e6", "929598", "3c4f5c", "b1e2ff"],
-    accessories: ["none", "kurt", "prescription01", "prescription02", "round", "sunglasses", "wayfarers", "eyepatch"],
-    beards: ["none", "beardMedium", "beardLight", "beardMajestic", "beardSmall", "beardThick"],
-    moustaches: ["none", "moustachFancy", "moustacheMagnum", "moustacheSmall", "moustacheThin"],
-    mouth: ["smile", "serious", "grimace", "default", "eating", "twinkle", "concerned", "disbelief", "sad", "tongue"]
+const DEFAULT_AVATARS = {
+    male: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+    female: "https://api.dicebear.com/7.x/avataaars/svg?seed=Aria"
 };
 
-let currentAvatarState = {
-    gender: "male",
-    top: 0,
-    hairColor: 0,
-    skinColor: 4, 
-    clothing: 1,
-    clothingColor: 0,
-    accessories: 0,
-    facialHair: "none", 
-    mouth: 0
-};
+let currentGender = "male";
 
-let currentCategory = "top";
-
-function generateAvatarUrl(customState = null, isThumb = false, itemIndex = 0) {
-    const s = customState || currentAvatarState;
-    const baseUrl = "https://api.dicebear.com/9.x/avataaars/svg";
+function updateOnboardingAvatar(gender) {
+    currentGender = gender;
+    const url = DEFAULT_AVATARS[gender];
+    DOM.avatarPreviewImg.src = url;
+    generatedAvatarUrl = url;
     
-    const topVal = s.gender === "male" ? AVATAR_OPTIONS.maleTop[s.top] : AVATAR_OPTIONS.femaleTop[s.top];
-    const facialHairVal = s.gender === "male" ? s.facialHair : "none";
-
-    const params = new URLSearchParams({
-        seed: `mchat_${s.gender}_${topVal}_${s.hairColor}_${itemIndex}`,
-        top: topVal,
-        topColor: AVATAR_OPTIONS.hairColor[s.hairColor],
-        facialHairColor: AVATAR_OPTIONS.hairColor[s.hairColor],
-        skinColor: AVATAR_OPTIONS.skinColor[s.skinColor],
-        clothing: AVATAR_OPTIONS.clothing[s.clothing],
-        clothingColor: AVATAR_OPTIONS.clothingColor[s.clothingColor || 0],
-        accessories: (s.accessories && AVATAR_OPTIONS.accessories[s.accessories] !== "none") ? AVATAR_OPTIONS.accessories[s.accessories] : "",
-        accessoriesProbability: (s.accessories && AVATAR_OPTIONS.accessories[s.accessories] !== "none") ? "100" : "0",
-        facialHair: (facialHairVal === "none" ? "" : facialHairVal),
-        facialHairProbability: (facialHairVal === "none" ? "0" : "100"),
-        mouth: AVATAR_OPTIONS.mouth[s.mouth],
-        backgroundColor: "b6e3f4",
-        scale: isThumb ? "90" : "100",
-        translateY: "-10" // Pull the head UP into the frame
-    });
-    return `${baseUrl}?${params.toString()}`;
-}
-
-function updateEditorPreview() {
-    DOM.editorPreviewImg.src = generateAvatarUrl();
-}
-
-function renderChoicesGrid() {
-    const grid = DOM.choicesGrid;
-    grid.innerHTML = ""; 
-    
-    let pool = [];
-    if (currentCategory === "top") {
-        pool = currentAvatarState.gender === "male" ? AVATAR_OPTIONS.maleTop : AVATAR_OPTIONS.femaleTop;
-    } else if ((currentCategory === "beards" || currentCategory === "moustaches") && currentAvatarState.gender === "female") {
-        grid.innerHTML = "<p style='grid-column: 1/-1; text-align:center; color:gray; font-size:0.8rem;'>Not available for female</p>";
-        return;
-    } else {
-        pool = AVATAR_OPTIONS[currentCategory];
-    }
-
-    pool.forEach((item, index) => {
-        const itemDiv = document.createElement('div');
-        const isActive = (currentCategory === "beards" || currentCategory === "moustaches") 
-                         ? currentAvatarState.facialHair === item 
-                         : currentAvatarState[currentCategory] === index;
-
-        itemDiv.className = `choice-item ${isActive ? 'active' : ''}`;
-        
-        const thumbState = { ...currentAvatarState };
-        if (currentCategory === "beards" || currentCategory === "moustaches") {
-            thumbState.facialHair = item;
-        } else {
-            thumbState[currentCategory] = index;
-        }
-        
-        const thumbUrl = generateAvatarUrl(thumbState, true, index); // Pass index for unique seed
-        itemDiv.innerHTML = `<img src="${thumbUrl}" loading="lazy" onerror="this.src='https://api.dicebear.com/9.x/initials/svg?seed=Avatar'">`;
-        
-        itemDiv.onclick = () => {
-            if (currentCategory === "beards" || currentCategory === "moustaches") {
-                currentAvatarState.facialHair = item;
-            } else {
-                currentAvatarState[currentCategory] = index;
-            }
-            updateEditorPreview();
-            renderChoicesGrid();
-        };
-        grid.appendChild(itemDiv);
+    // Update active UI state
+    document.querySelectorAll('#onboarding-screen .toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.gender === gender);
     });
 }
 
-// Open Editor
-DOM.createAvatarBtn.addEventListener('click', () => {
-    isRetakingAvatar = false;
-    DOM.avatarEditorOverlay.style.display = 'block';
-    renderChoicesGrid();
-    updateEditorPreview();
-});
-
-DOM.editRetakeAvatarBtn.addEventListener('click', () => {
-    isRetakingAvatar = true;
-    DOM.avatarEditorOverlay.style.display = 'block';
-    renderChoicesGrid();
-    updateEditorPreview();
-});
-
-DOM.editorCloseBtn.addEventListener('click', () => {
-    DOM.avatarEditorOverlay.style.display = 'none';
-});
-
-// Category Tabs Logic
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentCategory = btn.dataset.cat;
-        renderChoicesGrid();
-    });
-});
-
-// Gender Toggle Logic
-document.querySelectorAll('.toggle-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const gender = btn.dataset.gender;
-        currentAvatarState.gender = gender;
-        currentAvatarState.top = 0; // Reset hair to avoid index mismatch
-        
-        document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Hide/Show Beard & Moustache tabs for Female
-        document.querySelectorAll('.tab-btn[data-cat="beards"], .tab-btn[data-cat="moustaches"]').forEach(tab => {
-            tab.style.display = gender === 'female' ? 'none' : 'inline-block';
-        });
-
-        // If one of the hidden tabs was active, switch to Hairstyle
-        if (gender === 'female' && (currentCategory === 'beards' || currentCategory === 'moustaches')) {
-            currentCategory = "top";
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector('.tab-btn[data-cat="top"]').classList.add('active');
-        }
-
-        updateEditorPreview();
-        renderChoicesGrid();
-    });
-});
-
-// Save Logic
-DOM.saveAvatarBtn.addEventListener('click', () => {
-    const finalUrl = generateAvatarUrl();
+function updateEditAvatar(gender) {
+    const url = DEFAULT_AVATARS[gender];
+    DOM.editAvatarPreviewImg.src = url;
+    DOM.editAvatarPreviewImg.dataset.newUrl = url;
     
-    if (isRetakingAvatar) {
-        DOM.editAvatarPreviewImg.src = finalUrl;
-        DOM.editAvatarPreviewImg.dataset.newUrl = finalUrl;
-    } else {
-        generatedAvatarUrl = finalUrl;
-        
-        DOM.avatarPlaceholderIcon.style.display = 'none';
-        DOM.avatarPreviewImg.src = finalUrl;
-        DOM.avatarPreviewImg.style.display = 'block';
+    // Update active UI state
+    document.querySelectorAll('#edit-profile-modal .toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.gender === gender);
+    });
+}
 
-        DOM.generateBtn.disabled = false;
-        DOM.generateBtn.style.opacity = '1';
-        DOM.avatarStatusText.innerText = '✅ Avatar saved! Looking great.';
-        DOM.avatarStatusText.classList.add('success');
-        DOM.createAvatarBtn.innerText = '✏️ Edit Avatar';
-    }
-    
-    DOM.avatarEditorOverlay.style.display = 'none';
-});
+// Event Listeners for onboarding
+document.getElementById('onboarding-male-btn').onclick = () => updateOnboardingAvatar('male');
+document.getElementById('onboarding-female-btn').onclick = () => updateOnboardingAvatar('female');
+
+// Event Listeners for edit profile
+document.getElementById('edit-male-btn').onclick = () => updateEditAvatar('male');
+document.getElementById('edit-female-btn').onclick = () => updateEditAvatar('female');
+
+// Initialize default
+generatedAvatarUrl = DEFAULT_AVATARS.male;
+
 
 // --- Account Generation ---
 
@@ -633,14 +481,9 @@ if(DOM.settingsBtn) {
         // Reset inputs
         DOM.nameInput.value = "";
         DOM.displayId.innerText = "0200000000";
-        DOM.avatarPreviewImg.src = "";
-        DOM.avatarPreviewImg.style.display = 'none';
-        DOM.avatarPlaceholderIcon.style.display = 'inline';
-        DOM.generateBtn.disabled = true;
-        DOM.generateBtn.style.opacity = '0.4';
-        DOM.generateBtn.innerText = "Generate Account";
-        DOM.avatarStatusText.innerText = 'Avatar required to create account';
-        DOM.avatarStatusText.classList.remove('success');
+        updateOnboardingAvatar('male'); // Reset to default male
+        DOM.generateBtn.disabled = false;
+        DOM.generateBtn.style.opacity = '1';
         DOM.statusMsg.innerText = '';
         
         showScreen('onboarding');

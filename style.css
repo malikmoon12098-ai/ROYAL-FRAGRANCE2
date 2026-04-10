@@ -409,64 +409,6 @@ p {
     margin: 0 auto 10px auto;
 }
 
-#editor-preview-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    color: transparent;
-    display: block;
-    background: #b6e3f4; /* Match avatar background */
-}
-
-.choices-grid {
-    padding: 10px;
-    gap: 15px !important;
-}
-
-.choice-item {
-    background: #b6e3f4 !important; /* Force same background as avatar */
-    border-radius: 12px;
-    overflow: hidden;
-    border: 2px solid rgba(255,255,255,0.05);
-}
-
-.choice-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-}
-
-/* Category Tabs Spacing */
-.category-tabs {
-    padding: 15px 10px !important;
-    background: rgba(0,0,0,0.2);
-    margin-bottom: 10px;
-    display: flex !important;
-    gap: 12px !important;
-    overflow-x: auto !important;
-    white-space: nowrap;
-    -webkit-overflow-scrolling: touch;
-}
-
-.category-tabs::-webkit-scrollbar {
-    display: none;
-}
-
-.tab-btn {
-    font-size: 0.85rem !important;
-    padding: 8px 16px !important;
-    background: rgba(255,255,255,0.08) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 25px !important;
-}
-
-.tab-btn.active {
-    background: var(--primary) !important;
-    color: black !important;
-    border-color: var(--primary) !important;
-}
-
 /* Gender Toggle Buttons */
 .gender-toggle {
     margin-bottom: 25px;
@@ -483,60 +425,10 @@ p {
     transition: var(--transition);
 }
 
-/* Avatar Editor Grid System */
-.tab-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    font-size: 0.9rem;
-    font-weight: 600;
-    padding-bottom: 8px;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.tab-btn.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-}
-
-.choices-grid::-webkit-scrollbar {
-    width: 6px;
-}
-.choices-grid::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.2);
-    border-radius: 10px;
-}
-
-.choice-item {
-    aspect-ratio: 1;
-    background: rgba(255,255,255,0.05);
-    border-radius: 14px;
-    border: 2px solid transparent;
-    cursor: pointer;
-    overflow: hidden;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-
-.choice-item:hover {
-    background: rgba(255,255,255,0.1);
-}
-
-.choice-item.active {
+.toggle-btn.active {
+    background-color: var(--primary);
+    color: black;
     border-color: var(--primary);
-    background: rgba(79, 176, 135, 0.2);
-}
-
-.choice-item img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    transform: scale(0.9); /* Prevent clipping */
 }
 
 /* Chat List */

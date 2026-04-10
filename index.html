@@ -44,63 +44,26 @@
                 <input type="text" id="user-name-input" placeholder="Your Name" autocomplete="off">
             </div>
 
-            <!-- Avatar Step -->
+            <!-- Simplified Avatar Step -->
             <div class="avatar-creation-section">
                 <div id="avatar-preview-circle">
-                    <span id="avatar-placeholder-icon">👤</span>
-                    <img id="avatar-preview-img" src="" alt="Your Avatar" style="display:none;">
+                    <img id="avatar-preview-img" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Your Avatar" style="display:block;">
                 </div>
-                <button id="create-avatar-btn" class="secondary-btn">✨ Create Your Cartoon Avatar</button>
-                <p class="avatar-hint" id="avatar-status-text">Avatar required to create account</p>
+                
+                <div class="gender-selection" style="margin-bottom: 25px;">
+                    <p style="font-size: 0.9rem; margin-bottom: 12px; color: var(--text-dim);">Select Gender</p>
+                    <div class="gender-toggle" style="display:flex; gap:10px; justify-content:center;">
+                        <button class="toggle-btn active" data-gender="male" id="onboarding-male-btn">Male 👦</button>
+                        <button class="toggle-btn" data-gender="female" id="onboarding-female-btn">Female 👧</button>
+                    </div>
+                </div>
             </div>
 
-            <button id="generate-id-btn" class="primary-btn" disabled style="opacity:0.4;">Generate Account</button>
+            <button id="generate-id-btn" class="primary-btn">Generate Account</button>
             <div id="onboarding-status" class="status-msg"></div>
         </div>
     </div>
 
-    <!-- Native Avatar Character Creator Overlay -->
-    <div id="avatar-editor-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:var(--bg-dark); overflow-y:auto;">
-        <nav class="app-header glass">
-            <h2 style="margin:0;">Create Your Avatar</h2>
-            <button id="editor-close-btn" class="icon-btn">✕</button>
-        </nav>
-
-        <div class="editor-container" style="padding:20px; display:flex; flex-direction:column; align-items:center; height:calc(100% - 60px);">
-            <!-- Top Section: Preview & Gender -->
-            <div class="editor-top-section" style="display:flex; flex-direction:column; align-items:center; width:100%; padding-bottom:20px; border-bottom:1px solid var(--border-glass);">
-                <div id="editor-preview-box" style="width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,0.05); border:3px solid var(--primary); margin-bottom:15px; overflow:hidden;">
-                    <img id="editor-preview-img" src="" style="width:100%; height:100%;" alt="Preview">
-                </div>
-                
-                <div class="gender-toggle" style="display:flex; gap:10px;">
-                    <button class="toggle-btn active" data-gender="male" id="male-toggle">Male 👦</button>
-                    <button class="toggle-btn" data-gender="female" id="female-toggle">Female 👧</button>
-                </div>
-            </div>
-
-            <!-- Middle Section: Category Tabs (Scrollable) -->
-            <div class="category-tabs" id="category-tabs" style="width:100%; display:flex; gap:20px; overflow-x:auto; padding:15px 0; border-bottom:1px solid var(--border-glass); white-space:nowrap;">
-                <button class="tab-btn active" data-cat="top">Hairstyle 💇‍♂️</button>
-                <button class="tab-btn" data-cat="hairColor">Hair Color 🎨</button>
-                <button class="tab-btn" data-cat="skinColor">Skin Tone 🤝</button>
-                <button class="tab-btn" data-cat="clothing">Outfits 👕</button>
-                <button class="tab-btn" data-cat="accessories">Glasses 🕶️</button>
-                <button class="tab-btn" data-cat="beards">Beard 🧔</button>
-                <button class="tab-btn" data-cat="moustaches">Moustache 👨‍🎨</button>
-                <button class="tab-btn" data-cat="mouth">Mood 😎</button>
-            </div>
-
-            <!-- Bottom Section: Choice Grid (Restored 3-Column) -->
-            <div id="choices-grid" class="choices-grid" style="flex:1; width:100%; padding:15px; overflow-y:auto; display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
-                <!-- Dynamically filled -->
-            </div>
-
-            <div class="editor-footer" style="width:100%; padding-top:15px; border-top:1px solid var(--border-glass); display:flex; gap:12px;">
-                <button id="save-avatar-btn" class="primary-btn">Save Avatar</button>
-            </div>
-        </div>
-    </div>
     <!-- Registration Success Screen -->
     <div id="success-screen" class="screen">
         <div class="success-card glass">
@@ -228,7 +191,12 @@
                 <div id="edit-avatar-preview-circle">
                     <img id="edit-avatar-preview-img" src="" alt="Avatar">
                 </div>
-                <button id="edit-retake-avatar-btn" class="secondary-btn" style="margin-top:10px;">📸 Retake AI Avatar</button>
+                <div class="gender-selection" style="margin-top: 15px;">
+                    <div class="gender-toggle" style="display:flex; gap:10px; justify-content:center;">
+                        <button class="toggle-btn active" data-gender="male" id="edit-male-btn">Male 👦</button>
+                        <button class="toggle-btn" data-gender="female" id="edit-female-btn">Female 👧</button>
+                    </div>
+                </div>
             </div>
             <div class="input-group" style="margin-top:15px;">
                 <input type="text" id="edit-name-input" placeholder="Your Name" autocomplete="off">
