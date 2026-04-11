@@ -113,10 +113,25 @@
                     <button id="edit-profile-btn" class="settings-item">
                         <span>✏️</span> Edit Profile
                     </button>
+                    <button id="block-list-btn" class="settings-item">
+                        <span>🚫</span> Block List
+                    </button>
                     <div class="settings-divider"></div>
                     <button id="delete-account-btn" class="settings-item danger">
                         <span>🗑️</span> Delete Account
                     </button>
+                </div>
+                
+                <!-- Chat List Context Menu (Delete/Block) -->
+                <div id="contact-context-menu" style="display:none; position:fixed; z-index:10000; background:var(--bg-glass); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); width: 140px; overflow:hidden;">
+                    <div id="ctx-chat-delete-btn" style="padding:12px 15px; color:#ff3b3b; font-size:0.9rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:8px;">🗑️ Delete</div>
+                    <div id="ctx-chat-block-btn" style="padding:12px 15px; color:#ff3b3b; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:8px;">🚫 Block</div>
+                </div>
+
+                <!-- Blocked Contact Context Menu (Unblock/Delete) -->
+                <div id="blocked-context-menu" style="display:none; position:fixed; z-index:10000; background:var(--bg-glass); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); width: 140px; overflow:hidden;">
+                    <div id="ctx-unblock-btn" style="padding:12px 15px; color:white; font-size:0.9rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:8px;">✅ Unblock</div>
+                    <div id="ctx-blocked-delete-btn" style="padding:12px 15px; color:#ff3b3b; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:8px;">🗑️ Delete</div>
                 </div>
             </div>
         </nav>
@@ -227,6 +242,26 @@
             <div class="modal-actions" style="flex-direction: column; gap: 10px;">
                 <button id="allow-notifications-btn" class="primary-btn" style="width: 100%;">Enable & Continue</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Block List Modal -->
+    <div id="block-list-modal" class="modal-backdrop" style="display:none; align-items:flex-start; padding-top:50px;">
+        <div class="modal-box glass" style="width:100%; max-width:400px; height:70vh; display:flex; flex-direction:column; padding:0;">
+            <div style="padding:20px; border-bottom:1px solid rgba(255,255,255,0.1); display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">Blocked Contacts</h3>
+                <button id="close-block-list-btn" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="blocked-items-container" style="flex:1; overflow-y:auto; padding:10px;">
+                <!-- Blocked items injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Block Alert UI Base -->
+    <div id="block-alert-modal" class="modal-backdrop" style="display:none; z-index: 20000; align-items:center; justify-content:center; backdrop-filter:none; background:transparent;">
+        <div class="glass" style="padding:10px 20px; border-radius:30px; background:rgba(0,0,0,0.8); color:white; font-size:0.9rem; text-align:center;">
+            This user has blocked you.
         </div>
     </div>
 

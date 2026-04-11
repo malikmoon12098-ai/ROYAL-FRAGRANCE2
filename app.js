@@ -77,7 +77,19 @@ const DOM = {
     micBtn: document.getElementById('mic-btn'),
     sendBtn: document.getElementById('send-btn'),
     recordingOverlay: document.getElementById('recording-overlay'),
-    messageInput: document.getElementById('message-input')
+    messageInput: document.getElementById('message-input'),
+    // Block Features
+    blockListBtn: document.getElementById('block-list-btn'),
+    blockListModal: document.getElementById('block-list-modal'),
+    closeBlockListBtn: document.getElementById('close-block-list-btn'),
+    blockedItemsContainer: document.getElementById('blocked-items-container'),
+    blockAlertModal: document.getElementById('block-alert-modal'),
+    contactContextMenu: document.getElementById('contact-context-menu'),
+    ctxChatDeleteBtn: document.getElementById('ctx-chat-delete-btn'),
+    ctxChatBlockBtn: document.getElementById('ctx-chat-block-btn'),
+    blockedContextMenu: document.getElementById('blocked-context-menu'),
+    ctxUnblockBtn: document.getElementById('ctx-unblock-btn'),
+    ctxBlockedDeleteBtn: document.getElementById('ctx-blocked-delete-btn')
 };
 
 let replyToMsgObj = null;
@@ -87,6 +99,8 @@ let currentUser = null;
 let mqttClient = null;
 let activeChatObj = null;
 let chatList = JSON.parse(localStorage.getItem('mchat_chatlist')) || {};
+let blockList = JSON.parse(localStorage.getItem('mchat_blocklist')) || [];
+let contactToActObj = null;
 let generatedAvatarUrl = null; 
 
 let deferredPrompt = null;
@@ -394,6 +408,31 @@ function initMQTT() {
                     }
                     return;
                 }
+
+                if (payload.type === "DELETE_SINGLE_MSG") {
+                    const roomId = getChatRoomId(currentUser.id, payload.friendId);
+                    removeSingleMessageLocally(roomId, payload.msgId);
+                    if (activeChatObj && activeChatObj.id === payload.friendId) {
+                        renderLocalMessages();
+                    }
+                    return;
+                }
+                
+                // If the message is a block reject signal
+                if (payload.type === "YOU_ARE_BLOCKED") {
+                    DOM.blockAlertModal.style.display = 'flex';
+                    return;
+                }
+                
+                // If the sender is in our block list, reject it silently and send YOU_ARE_BLOCKED
+                if (blockList.includes(payload.senderId)) {
+                    if (payload.msgId && !payload.type) { // only reject actual chat messages
+                        const rejectPayload = { type: "YOU_ARE_BLOCKED" };
+                        mqttClient.publish(`mchat/inbox/${payload.senderId}`, JSON.stringify(rejectPayload), {qos: 1});
+                    }
+                    return;
+                }
+
                 handleInboxMessage(payload);
             }
             
@@ -480,6 +519,9 @@ function renderChatList(filter = "") {
         ordered = ordered.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()) || c.id.includes(filter));
     }
 
+    // Filter out blocked contacts from chat list
+    ordered = ordered.filter(c => !blockList.includes(c.id));
+
     if (ordered.length === 0) {
         container.innerHTML = `<p style="text-align:center; padding:20px; color:#aaa;">${filter ? "No contacts found." : "No chats yet. Click + to add a friend!"}</p>`;
         return;
@@ -519,8 +561,68 @@ function renderChatList(filter = "") {
                 </div>
             </div>
         `;
+
+        // Context Menu Handlers (Right click & Long Press)
+        div.oncontextmenu = (e) => {
+            e.preventDefault();
+            openContactContextMenu(e, c);
+        };
+        initLongPress(div, c, openContactContextMenu);
+
         container.appendChild(div);
     });
+}
+
+function openContactContextMenu(e, contactObj) {
+    e.preventDefault();
+    contactToActObj = contactObj;
+    
+    const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth / 2;
+    const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight / 2;
+    
+    DOM.contactContextMenu.style.display = 'block';
+    DOM.blockedContextMenu.style.display = 'none'; // Hide other
+    
+    const rect = DOM.contactContextMenu.getBoundingClientRect();
+    let finalX = x; let finalY = y;
+    if (x + rect.width > window.innerWidth) finalX = window.innerWidth - rect.width - 10;
+    if (y + rect.height > window.innerHeight) finalY = window.innerHeight - rect.height - 10;
+    
+    DOM.contactContextMenu.style.left = finalX + 'px';
+    DOM.contactContextMenu.style.top = finalY + 'px';
+    
+    if (window.navigator.vibrate) window.navigator.vibrate(20);
+}
+
+// Global dismiss for context menus
+document.addEventListener('click', (e) => {
+    if (DOM.contactContextMenu && DOM.contactContextMenu.style.display === 'block') DOM.contactContextMenu.style.display = 'none';
+    if (DOM.blockedContextMenu && DOM.blockedContextMenu.style.display === 'block') DOM.blockedContextMenu.style.display = 'none';
+});
+
+// Contact Context Actions
+if(DOM.ctxChatDeleteBtn) DOM.ctxChatDeleteBtn.onclick = () => {
+    DOM.contactContextMenu.style.display = 'none';
+    if (contactToActObj) {
+        delete chatList[contactToActObj.id];
+        saveChatList();
+        renderChatList();
+    }
+};
+
+if(DOM.ctxChatBlockBtn) DOM.ctxChatBlockBtn.onclick = () => {
+    DOM.contactContextMenu.style.display = 'none';
+    if (contactToActObj) {
+        if (!blockList.includes(contactToActObj.id)) {
+            blockList.push(contactToActObj.id);
+            saveBlockList();
+        }
+        renderChatList();
+    }
+};
+
+function saveBlockList() {
+    localStorage.setItem('mchat_blocklist', JSON.stringify(blockList));
 }
 
 function saveChatList() {
@@ -861,8 +963,8 @@ function appendSingleMessageUI(m, isBatch = false) {
         openContextMenu(e, m);
     };
 
-    // Long Press for Mobile
-    initLongPress(b, m, openContextMenu);
+    // Long Press for Mobile -> Direct Delete Modal
+    initLongPress(b, m, openDeleteModalMobile);
 
     if (!isBatch) container.scrollTop = container.scrollHeight;
 }
@@ -909,15 +1011,23 @@ DOM.ctxReplyBtn.onclick = (e) => {
 DOM.ctxDeleteBtn.onclick = (e) => {
     DOM.msgContextMenu.style.display = 'none';
     if (!msgToDeleteObj) return;
-    
-    if (msgToDeleteObj.senderId === currentUser.id) {
-        // I sent it -> Show 3 options
-        DOM.msgDeleteModal.style.display = 'flex';
-    } else {
-        // They sent it -> Delete for me directly
-        deleteForMeLocally(msgToDeleteObj);
-    }
+    openDeleteModalMobile(e, msgToDeleteObj); // Use new logic for both right click delete option and long press
 };
+
+function openDeleteModalMobile(e, msgObj) {
+    if(e && e.preventDefault) e.preventDefault();
+    msgToDeleteObj = msgObj;
+    DOM.msgContextMenu.style.display = 'none';
+
+    if (msgObj.senderId === currentUser.id) {
+        DOM.deleteEveryoneBtn.style.display = 'block';
+    } else {
+        DOM.deleteEveryoneBtn.style.display = 'none';
+    }
+    
+    DOM.msgDeleteModal.style.display = 'flex';
+    if (window.navigator.vibrate) window.navigator.vibrate(20);
+}
 
 function initLongPress(el, msgObj, callback) {
     let timer;
@@ -1331,6 +1441,93 @@ if (DOM.settingsBtn) {
         // 5. Back to start
         showScreen('onboarding');
     });
+
+    // --- Block List UI ---
+    DOM.blockListBtn.onclick = () => {
+        DOM.settingsDropdown.style.display = 'none';
+        renderBlockList();
+        DOM.blockListModal.style.display = 'flex';
+    };
+
+    DOM.closeBlockListBtn.onclick = () => {
+        DOM.blockListModal.style.display = 'none';
+    };
+
+    DOM.blockAlertModal.onclick = () => {
+        DOM.blockAlertModal.style.display = 'none';
+    };
+    
+    function renderBlockList() {
+        DOM.blockedItemsContainer.innerHTML = '';
+        if (blockList.length === 0) {
+            DOM.blockedItemsContainer.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-dim);">No blocked contacts.</div>';
+            return;
+        }
+        
+        blockList.forEach(blockedId => {
+            const chatObj = chatList[blockedId];
+            const name = chatObj ? chatObj.name : 'Unknown User';
+            const avatar = chatObj ? chatObj.avatar : createLetterAvatar(blockedId);
+            
+            const div = document.createElement('div');
+            div.style.cssText = "display:flex; align-items:center; padding:10px; border-bottom:1px solid rgba(255,255,255,0.05);";
+            
+            div.innerHTML = `
+                <img src="${avatar}" style="width:40px; height:40px; border-radius:50%; margin-right:15px; object-fit:cover;">
+                <div style="flex:1;">
+                    <div style="font-weight:bold;">${name}</div>
+                    <div style="font-size:0.75rem; color:var(--text-dim);">${blockedId}</div>
+                </div>
+            `;
+            
+            div.oncontextmenu = (e) => {
+                e.preventDefault();
+                contactToActObj = { id: blockedId }; 
+                
+                const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth / 2;
+                const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight / 2;
+                
+                DOM.blockedContextMenu.style.display = 'block';
+                DOM.contactContextMenu.style.display = 'none';
+                
+                const rect = DOM.blockedContextMenu.getBoundingClientRect();
+                let finalX = x; let finalY = y;
+                if (x + rect.width > window.innerWidth) finalX = window.innerWidth - rect.width - 10;
+                if (y + rect.height > window.innerHeight) finalY = window.innerHeight - rect.height - 10;
+                
+                DOM.blockedContextMenu.style.left = finalX + 'px';
+                DOM.blockedContextMenu.style.top = finalY + 'px';
+                
+                if (window.navigator.vibrate) window.navigator.vibrate(20);
+            };
+            
+            initLongPress(div, { id: blockedId }, div.oncontextmenu);
+            DOM.blockedItemsContainer.appendChild(div);
+        });
+    }
+
+    // Block List Context Actions
+    if (DOM.ctxUnblockBtn) DOM.ctxUnblockBtn.onclick = () => {
+        DOM.blockedContextMenu.style.display = 'none';
+        if (contactToActObj) {
+            blockList = blockList.filter(id => id !== contactToActObj.id);
+            saveBlockList();
+            renderBlockList();
+            renderChatList(); // Will show up in chat list again
+        }
+    };
+
+    if (DOM.ctxBlockedDeleteBtn) DOM.ctxBlockedDeleteBtn.onclick = () => {
+        DOM.blockedContextMenu.style.display = 'none';
+        if (contactToActObj) {
+            blockList = blockList.filter(id => id !== contactToActObj.id);
+            saveBlockList();
+            if (chatList[contactToActObj.id]) delete chatList[contactToActObj.id];
+            saveChatList();
+            renderBlockList();
+            renderChatList();
+        }
+    };
 
     // --- Edit Profile ---
     DOM.editProfileBtn.addEventListener('click', () => {
