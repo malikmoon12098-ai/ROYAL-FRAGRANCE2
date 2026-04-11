@@ -698,24 +698,6 @@ function closeActiveChatAndClear() {
     const msgs = JSON.parse(localStorage.getItem(roomId)) || [];
     const hasReceived = msgs.some(m => m.senderId === friendId);
 
-    // ONLY delete and notify if we were the recipient of some messages
-    // If we only SENT messages, we wait for the OTHER person to seen and delete.
-    if (hasReceived) {
-        // 1. Send FINAL deletion signal to friend
-        const closeSignal = {
-            type: "CHAT_CLOSED_DELETE",
-            senderId: currentUser.id,
-            timestamp: Date.now()
-        };
-        mqttClient.publish(`mchat/inbox/${friendId}`, JSON.stringify(closeSignal));
-
-        // 2. Delete locally
-        localStorage.removeItem(roomId);
-        
-        // 3. Update UI
-        updateChatList(friendId, activeChatObj.name, activeChatObj.avatar, "All read & deleted");
-    }
-    
     // 4. Reset View State (Always)
     mqttClient.unsubscribe(`mchat/status/${friendId}`);
     activeChatObj = null;
@@ -1422,7 +1404,13 @@ function initVoiceUI() {
 
 async function startRecording(e) {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            } 
+        });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
         isRecCancelled = false;
