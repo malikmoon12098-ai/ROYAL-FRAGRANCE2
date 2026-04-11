@@ -1,16 +1,15 @@
-// Basic Service Worker for Offline Capabilities
-const CACHE_NAME = 'm-chat-cache-v1';
+const CACHE_NAME = 'm-chat-cache-v2';
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
   './app.js',
-  './assets/logo.png',
-  './assets/avatar_male.png',
-  './assets/avatar_female.png'
+  './manifest.json',
+  './assets/logo.png'
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting(); // Force update
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -19,11 +18,18 @@ self.addEventListener('install', event => {
   );
 });
 
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+      );
+    })
+  );
+});
+
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        return response || fetch(event.request);
-      })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
