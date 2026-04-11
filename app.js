@@ -73,6 +73,7 @@ const DOM = {
     // Permissions
     permissionModal: document.getElementById('permission-modal'),
     allowNotifBtn: document.getElementById('allow-notifications-btn'),
+    skipNotifBtn: document.getElementById('skip-notifications-btn'),
     // Voice elements
     micBtn: document.getElementById('mic-btn'),
     sendBtn: document.getElementById('send-btn'),
@@ -1782,15 +1783,24 @@ function checkPermissionModal() {
 
 DOM.allowNotifBtn.onclick = () => {
     Notification.requestPermission().then(permission => {
+        DOM.permissionModal.style.display = 'none'; // Always hide it now
         if (permission === 'granted') {
             localStorage.setItem('mchat_notif_prompted', 'true');
-            DOM.permissionModal.style.display = 'none';
             new Notification("M-Chat", { body: "Notifications enabled successfully!", icon: "./icons/icon-192x192.png" });
         } else {
-            alert("M-Chat requires notifications to work in the background. Please allow them in your browser/site settings.");
+            // Save prompt block so they aren't bothered forever
+            localStorage.setItem('mchat_notif_prompted', 'true');
+            alert("M-Chat requires notifications to work in the background. Please allow them in your browser/site settings if you change your mind.");
         }
     });
 };
+
+if (DOM.skipNotifBtn) {
+    DOM.skipNotifBtn.onclick = () => {
+        localStorage.setItem('mchat_notif_prompted', 'true');
+        DOM.permissionModal.style.display = 'none';
+    };
+}
 
 function showLocalNotification(senderName, text, avatar) {
     if (Notification.permission === 'granted') {
