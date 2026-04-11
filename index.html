@@ -126,18 +126,6 @@
                         <span>🗑️</span> Delete Account
                     </button>
                 </div>
-                
-                <!-- Chat List Context Menu (Delete/Block) -->
-                <div id="contact-context-menu" style="display:none; position:fixed; z-index:10000; background:var(--bg-glass); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); width: 140px; overflow:hidden;">
-                    <div id="ctx-chat-delete-btn" style="padding:12px 15px; color:#ff3b3b; font-size:0.9rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:8px;">🗑️ Delete</div>
-                    <div id="ctx-chat-block-btn" style="padding:12px 15px; color:#ff3b3b; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:8px;">🚫 Block</div>
-                </div>
-
-                <!-- Blocked Contact Context Menu (Unblock/Delete) -->
-                <div id="blocked-context-menu" style="display:none; position:fixed; z-index:10000; background:var(--bg-glass); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); width: 140px; overflow:hidden;">
-                    <div id="ctx-unblock-btn" style="padding:12px 15px; color:white; font-size:0.9rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:8px;">✅ Unblock</div>
-                    <div id="ctx-blocked-delete-btn" style="padding:12px 15px; color:#ff3b3b; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:8px;">🗑️ Delete</div>
-                </div>
             </div>
         </nav>
 
@@ -320,6 +308,19 @@
                 <button id="save-contact-btn" class="modal-btn save-btn">Save Contact</button>
             </div>
         </div>
+    </div>
+
+
+    <!-- Chat List Context Menu (Delete/Block) - Body Level -->
+    <div id="contact-context-menu" style="display:none; position:fixed; z-index:99999; background:#1a2428; backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,0.7); width: 150px; overflow:hidden;">
+        <div id="ctx-chat-delete-btn" style="padding:13px 16px; color:#ff4d4d; font-size:0.9rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; gap:10px; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,77,77,0.1)'" onmouseout="this.style.background='transparent'">🗑️ Delete</div>
+        <div id="ctx-chat-block-btn" style="padding:13px 16px; color:#ff4d4d; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:10px; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,77,77,0.1)'" onmouseout="this.style.background='transparent'">🚫 Block</div>
+    </div>
+
+    <!-- Blocked Contact Context Menu (Unblock/Delete) - Body Level -->
+    <div id="blocked-context-menu" style="display:none; position:fixed; z-index:99999; background:#1a2428; backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15); border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,0.7); width: 150px; overflow:hidden;">
+        <div id="ctx-unblock-btn" style="padding:13px 16px; color:#4fb087; font-size:0.9rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; gap:10px; transition: background 0.15s;" onmouseover="this.style.background='rgba(79,176,135,0.1)'" onmouseout="this.style.background='transparent'">✅ Unblock</div>
+        <div id="ctx-blocked-delete-btn" style="padding:13px 16px; color:#ff4d4d; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:10px; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,77,77,0.1)'" onmouseout="this.style.background='transparent'">🗑️ Delete</div>
     </div>
 
     <script src="app.js"></script>
