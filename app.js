@@ -48,8 +48,15 @@ const DOM = {
     // Lightbox
     lightbox: document.getElementById('image-lightbox'),
     lightboxImg: document.getElementById('lightbox-img'),
-    closeLightboxBtn: document.getElementById('close-lightbox')
+    closeLightboxBtn: document.getElementById('close-lightbox'),
+    // Reply
+    replyArea: document.getElementById('reply-preview-container'),
+    replyName: document.getElementById('reply-preview-name'),
+    replyText: document.getElementById('reply-preview-text'),
+    closeReplyBtn: document.getElementById('close-reply-btn')
 };
+
+let replyToMsgObj = null;
 
 let currentUser = null;
 let mqttClient = null;
@@ -527,39 +534,41 @@ function renderLocalMessages() {
     container.innerHTML = "";
     
     msgs.forEach(m => {
-        const isSent = m.senderId === currentUser.id;
-        const b = document.createElement('div');
-        b.classList.add('message', isSent ? 'sent' : 'received');
-        
-        let contentHtml = "";
-        if (m.image) {
-            contentHtml += `<img src="${m.image}" style="width:100%; border-radius:8px; margin-bottom:5px; display:block;">`;
-        }
-        if (m.text) {
-            contentHtml += `<div>${m.text}</div>`;
-        }
-        
-        const timeStr = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
-        b.innerHTML = `${contentHtml} <span class="message-time">${timeStr}</span>`;
-        
-        // Add click listener to image for lightbox
-        const img = b.querySelector('img');
-        if (img) {
-            img.onclick = () => openLightbox(img.src);
-        }
-        
-        container.appendChild(b);
+        appendSingleMessageUI(m, true);
     });
     container.scrollTop = container.scrollHeight;
 }
 
-function appendSingleMessageUI(m) {
+function appendSingleMessageUI(m, isBatch = false) {
     const isSent = m.senderId === currentUser.id;
     const container = document.getElementById('message-container');
+    
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('message-wrapper');
+    wrapper.id = m.msgId; // Anchor for scrolling to replies
+    
+    // Swipe Icon
+    const swipeIcon = document.createElement('div');
+    swipeIcon.classList.add('swipe-reply-icon');
+    swipeIcon.innerHTML = '↶';
+    wrapper.appendChild(swipeIcon);
+
     const b = document.createElement('div');
-    b.classList.add('message', isSent ? 'sent' : 'received', 'fade-in');
+    b.classList.add('message', isSent ? 'sent' : 'received');
+    if (!isBatch) b.classList.add('fade-in');
     
     let contentHtml = "";
+    
+    // Add Reply Quote if exists
+    if (m.replyTo) {
+        contentHtml += `
+            <div class="reply-quote" onclick="scrollToMessage('${m.replyTo.msgId}')">
+                <div class="reply-quote-name">${m.replyTo.senderName}</div>
+                <div class="reply-quote-text">${m.replyTo.text || (m.replyTo.image ? "📷 Photo" : "")}</div>
+            </div>
+        `;
+    }
+
     if (m.image) {
         contentHtml += `<img src="${m.image}" style="width:100%; border-radius:8px; margin-bottom:5px; display:block;">`;
     }
@@ -567,7 +576,8 @@ function appendSingleMessageUI(m) {
         contentHtml += `<div>${m.text}</div>`;
     }
     
-    b.innerHTML = `${contentHtml} <span class="message-time">${new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})}</span>`;
+    const timeStr = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
+    b.innerHTML = `${contentHtml} <span class="message-time">${timeStr}</span>`;
     
     // Add click listener to image for lightbox
     const img = b.querySelector('img');
@@ -575,9 +585,64 @@ function appendSingleMessageUI(m) {
         img.onclick = () => openLightbox(img.src);
     }
     
-    container.appendChild(b);
-    container.scrollTop = container.scrollHeight;
+    wrapper.appendChild(b);
+    container.appendChild(wrapper);
+
+    // Initialise Swipe for this message
+    initSwipe(b, m);
+
+    if (!isBatch) container.scrollTop = container.scrollHeight;
 }
+
+function initSwipe(el, msgObj) {
+    let startX = 0;
+    let dist = 0;
+    const threshold = 60;
+
+    el.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        el.style.transition = 'none';
+        el.classList.add('swiping-right');
+    }, {passive: true});
+
+    el.addEventListener('touchmove', (e) => {
+        const currentX = e.touches[0].clientX;
+        dist = currentX - startX;
+        if (dist > 0 && dist < 100) {
+            el.style.transform = `translateX(${dist}px)`;
+            // Provide haptic feedback if reached threshold
+            if (dist >= threshold && !el.dataset.triggered) {
+                if (window.navigator.vibrate) window.navigator.vibrate(10);
+                el.dataset.triggered = "true";
+            }
+        }
+    }, {passive: true});
+
+    el.addEventListener('touchend', () => {
+        el.style.transition = 'transform 0.2s ease';
+        el.style.transform = 'translateX(0px)';
+        el.classList.remove('swiping-right');
+        
+        if (dist >= threshold) {
+            showReplyPreview(msgObj);
+        }
+        dist = 0;
+        el.dataset.triggered = "";
+    });
+}
+
+function showReplyPreview(m) {
+    replyToMsgObj = m;
+    DOM.replyName.innerText = m.senderId === currentUser.id ? "You" : m.senderName;
+    DOM.replyText.innerText = m.text || (m.image ? "📷 Photo" : "");
+    DOM.replyArea.style.display = "block";
+    document.getElementById('message-input').focus();
+}
+
+DOM.closeReplyBtn.onclick = () => {
+    replyToMsgObj = null;
+    DOM.replyArea.style.display = "none";
+};
 function handleInboxMessage(payload) {
     const roomId = getChatRoomId(currentUser.id, payload.senderId);
     
@@ -758,8 +823,11 @@ async function sendMessage() {
 
     input.value = ""; 
     const currentPendingImage = pendingImage; // Capture it
+    const currentReplyTo = replyToMsgObj; // Capture it
     pendingImage = null;
+    replyToMsgObj = null;
     DOM.imagePreviewArea.style.display = "none";
+    DOM.replyArea.style.display = "none";
     DOM.chatFileInput.value = "";
     
     let processedImage = null;
@@ -779,6 +847,12 @@ async function sendMessage() {
         senderAvatarY: currentUser.avatarY || 0,
         text: text,
         image: processedImage, 
+        replyTo: currentReplyTo ? {
+            msgId: currentReplyTo.msgId,
+            senderName: currentReplyTo.senderName,
+            text: currentReplyTo.text,
+            image: currentReplyTo.image
+        } : null,
         timestamp: Date.now()
     };
     
@@ -793,7 +867,33 @@ async function sendMessage() {
 
 // --- Settings & Profile Logic ---
 
-if(DOM.settingsBtn) {
+    // --- Hard Refresh ---
+    const hardRefreshBtn = document.getElementById('hard-refresh-btn');
+    if (hardRefreshBtn) {
+        hardRefreshBtn.addEventListener('click', () => {
+            if (confirm("Hard refresh will reload the app to fetch the latest updates. Continue?")) {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(registrations => {
+                        for (let registration of registrations) {
+                            registration.unregister();
+                        }
+                        // Clear caches if supported
+                        if ('caches' in window) {
+                            caches.keys().then(names => {
+                                for (let name of names) caches.delete(name);
+                            });
+                        }
+                        setTimeout(() => {
+                            window.location.reload(true);
+                        }, 500);
+                    });
+                } else {
+                    window.location.reload(true);
+                }
+            }
+        });
+    }
+
     DOM.settingsBtn.addEventListener('click', () => {
         DOM.settingsDropdown.style.display = DOM.settingsDropdown.style.display === 'none' ? 'block' : 'none';
     });
@@ -956,6 +1056,17 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', () => {
     updateStatus("offline");
 });
+
+function scrollToMessage(msgId) {
+    const el = document.getElementById(msgId);
+    if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.style.backgroundColor = 'rgba(79, 176, 135, 0.2)';
+        setTimeout(() => {
+            el.style.backgroundColor = 'transparent';
+        }, 1500);
+    }
+}
 
 // Let's go!
 window.addEventListener('DOMContentLoaded', initApp);

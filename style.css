@@ -607,6 +607,11 @@ p {
     gap: 10px;
 }
 
+/* Reply Preview Styles */
+#reply-preview-container {
+    transition: all 0.3s ease;
+}
+
 .input-area {
     padding: 15px;
     display: flex;
@@ -679,4 +684,65 @@ p {
     margin-top: 5px;
     text-align: right;
     display: block;
+}
+/* Swipe to Reply Styles */
+.message-wrapper {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    user-select: none;
+    touch-action: pan-y;
+}
+
+.message {
+    transition: transform 0.1s ease-out;
+    z-index: 2;
+    position: relative;
+}
+
+.swipe-reply-icon {
+    position: absolute;
+    left: -40px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    background: rgba(79, 176, 135, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    opacity: 0;
+    transition: opacity 0.2s, left 0.1s;
+    pointer-events: none;
+}
+
+.message.swiping-right .swipe-reply-icon {
+    opacity: 1;
+}
+
+/* Quoted Message in Chat */
+.reply-quote {
+    background: rgba(0, 0, 0, 0.15);
+    border-left: 3px solid var(--primary);
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.reply-quote-name {
+    font-weight: bold;
+    color: var(--primary);
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+}
+
+.reply-quote-text {
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
