@@ -66,13 +66,22 @@ async function initApp() {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
     
     if (isStandalone) {
-        // Already installed and running as app - go straight to splash
         startBootFlow();
     } else {
-        // Running in browser - show Install Screen first
+        // We still show the install screen but allow skipping
         showScreen('install');
+        // If they already have data, maybe they just want to use the web version
+        if (localStorage.getItem('mchat_currentUser')) {
+            startBootFlow(); 
+        }
     }
 }
+
+// Global binding for the skip button
+document.addEventListener('DOMContentLoaded', () => {
+    const skipBtn = document.getElementById('skip-install-btn');
+    if (skipBtn) skipBtn.onclick = () => startBootFlow();
+});
 
 // Separate boot flow for cleaner logic
 async function startBootFlow() {
