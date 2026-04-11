@@ -254,7 +254,8 @@ function initMQTT() {
     }
 
     const clientId = 'mchat_' + currentUser.id + '_' + Math.random().toString(16).substr(2, 4);
-    const host = 'wss://broker.emqx.io:8084/mqtt';
+    // Using HiveMQ for better stability
+    const host = 'wss://broker.hivemq.com:8000/mqtt'; 
     
     console.log("Connecting to MQTT broker...");
     mqttClient = mqtt.connect(host, {
@@ -262,10 +263,20 @@ function initMQTT() {
         clean: true,
         connectTimeout: 4000,
         reconnectPeriod: 2000,
+        // Last Will: If we disconnect, others see us as offline with a timestamp
+        will: {
+            topic: `mchat/status/${currentUser.id}`,
+            payload: JSON.stringify({ status: "offline", lastSeen: Date.now() }),
+            qos: 1,
+            retain: true
+        }
     });
 
     mqttClient.on('connect', () => {
-        console.log('Connected to MQTT. Setting up Universal Inbox and Directory.');
+        console.log('Connected to MQTT. Setting up Universal Inbox, Directory, and Status.');
+        
+        // Update presence to Online (Retained)
+        updateStatus("online");
         
         // 1. Publish our presence to the Global Directory with "Retain"
         // This ensures anyone searching for our ID finds our profile instantly
@@ -296,6 +307,14 @@ function initMQTT() {
             // Handle Inbox Messages
             if (topic === `mchat/inbox/${currentUser.id}`) {
                 handleInboxMessage(payload);
+            }
+            
+            // Handle Status Updates
+            if (topic.startsWith('mchat/status/') && activeChatObj) {
+                const friendId = topic.split('/').pop();
+                if (friendId === activeChatObj.id) {
+                    updateStatusUI(payload);
+                }
             }
 
             // Handle Global Directory Updates (Retained Messages)
@@ -448,16 +467,29 @@ function startNewChat() {
 // --- Chat View & Messaging ---
 
 function openChatView(name, id, avatar, zoom, x, y) {
+    if (activeChatObj && mqttClient) {
+        // Unsubscribe from previous friend's status
+        mqttClient.unsubscribe(`mchat/status/${activeChatObj.id}`);
+    }
+
     activeChatObj = { id, name, avatar, zoom, x, y };
     document.getElementById('active-chat-name').innerText = name;
+    
+    // Status Reset
+    document.getElementById('header-status').innerText = "...";
+
     const mini = document.getElementById('active-chat-avatar');
     mini.src = avatar || createLetterAvatar(name);
     mini.style.transform = `none`;
     DOM.chatView.classList.add('open');
     
-    // Just render stored history. We don't subscribe to a room anymore!
-    // Our Universal Inbox catches new messages seamlessly.
+    // Show local history
     renderLocalMessages();
+
+    // Subscribe to current friend's status
+    if (mqttClient) {
+        mqttClient.subscribe(`mchat/status/${id}`);
+    }
 }
 
 function getLocalMessages() {
@@ -608,6 +640,9 @@ function handleInboxMessage(payload) {
 
 DOM.backBtn.addEventListener('click', () => {
     if (activeChatObj && mqttClient) {
+        // Unsubscribe from status updates to save bandwidth
+        mqttClient.unsubscribe(`mchat/status/${activeChatObj.id}`);
+        
         const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
         const msgs = getLocalMessages();
         
@@ -774,31 +809,33 @@ if(DOM.settingsBtn) {
     DOM.confirmDeleteBtn.addEventListener('click', () => {
         DOM.deleteModal.style.display = 'none';
         
-        // Remove self from global directory before disconnecting
+        // 1. Remove self from global directory before disconnecting
         if(mqttClient && currentUser) {
-            mqttClient.publish(`mchat/directory/${currentUser.id}`, "", { retain: true }); // delete retained message
+            mqttClient.publish(`mchat/directory/${currentUser.id}`, "", { retain: true }); 
         }
 
-        // Clear everything
+        // 2. Clear all local state
         currentUser = null;
         chatList = {};
         activeChatObj = null;
         generatedAvatarUrl = null;
         localStorage.clear(); 
         
+        // 3. Disconnect MQTT
         if (mqttClient) {
             mqttClient.end();
             mqttClient = null;
         }
         
-        // Reset inputs
+        // 4. Reset Onboarding UI
         DOM.nameInput.value = "";
         DOM.displayId.innerText = "0200000000";
-        updateOnboardingAvatar('male'); // Reset to default male
         DOM.generateBtn.disabled = false;
+        DOM.generateBtn.innerText = "Generate Account";
         DOM.generateBtn.style.opacity = '1';
         DOM.statusMsg.innerText = '';
         
+        // 5. Back to start
         showScreen('onboarding');
     });
 
@@ -863,6 +900,53 @@ if(DOM.settingsBtn) {
         DOM.editProfileModal.style.display = 'none';
     });
 }
+
+// --- Presence & Online Status ---
+
+function updateStatus(status) {
+    if (!mqttClient || !currentUser) return;
+    const topic = `mchat/status/${currentUser.id}`;
+    const payload = { status: status };
+    if (status === "offline") payload.lastSeen = Date.now();
+    
+    mqttClient.publish(topic, JSON.stringify(payload), { retain: true, qos: 1 });
+}
+
+function updateStatusUI(payload) {
+    const statusEl = document.getElementById('header-status');
+    if (!statusEl) return;
+
+    if (payload.status === "online") {
+        statusEl.innerText = "online";
+        statusEl.style.color = "#4fb087"; // Primary green
+    } else {
+        const lastSeen = payload.lastSeen || Date.now();
+        const timeDiff = Date.now() - lastSeen;
+        
+        // Simple "last seen" formatting
+        const timeStr = new Date(lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (timeDiff < 24 * 3600 * 1000) {
+            statusEl.innerText = `last seen today at ${timeStr}`;
+        } else {
+            const dateStr = new Date(lastSeen).toLocaleDateString();
+            statusEl.innerText = `last seen on ${dateStr}`;
+        }
+        statusEl.style.color = "var(--text-dim)";
+    }
+}
+
+// Track when user leaves app
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        updateStatus("online");
+    } else {
+        updateStatus("offline");
+    }
+});
+
+window.addEventListener('pagehide', () => {
+    updateStatus("offline");
+});
 
 // Let's go!
 window.addEventListener('DOMContentLoaded', initApp);
