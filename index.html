@@ -248,14 +248,20 @@
         </div>
     </div>
 
-    <!-- Delete Message Modal -->
+    <!-- Message Context Menu (Right Click / Long Press) -->
+    <div id="msg-context-menu" style="display:none; position:fixed; z-index:10000; background:var(--bg-glass); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.1); border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5); width: 140px; overflow:hidden;">
+        <div id="ctx-reply-btn" style="padding:12px 15px; color:white; font-size:0.9rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:8px;">↩ Reply</div>
+        <div id="ctx-delete-btn" style="padding:12px 15px; color:#ff3b3b; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; gap:8px;">🗑️ Delete</div>
+    </div>
+
+    <!-- Delete Message Modal (3 Options) -->
     <div id="delete-msg-modal" class="modal-backdrop" style="display:none; z-index: 9999;">
         <div class="modal-box glass">
-            <h3>Delete for Everyone?</h3>
-            <p>This message will be removed from both sides.</p>
-            <div class="modal-actions">
-                <button id="cancel-msg-delete" class="modal-btn cancel-btn">Cancel</button>
-                <button id="confirm-msg-delete" class="modal-btn delete-btn" style="background: #ff3b3b;">Delete</button>
+            <h3>Delete Message?</h3>
+            <div class="modal-actions" style="flex-direction: column; gap:10px; margin-top:20px;">
+                <button id="delete-everyone-btn" class="modal-btn delete-btn" style="background: #ff3b3b; width:100%;">Delete for Everyone</button>
+                <button id="delete-for-me-btn" class="modal-btn save-btn" style="width:100%;">Delete for Me</button>
+                <button id="cancel-msg-delete" class="modal-btn cancel-btn" style="width:100%;">Cancel</button>
             </div>
         </div>
     </div>

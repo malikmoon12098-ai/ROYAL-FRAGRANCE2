@@ -56,8 +56,13 @@ const DOM = {
     closeReplyBtn: document.getElementById('close-reply-btn'),
     // Delete Msg
     msgDeleteModal: document.getElementById('delete-msg-modal'),
-    confirmMsgDelete: document.getElementById('confirm-msg-delete'),
+    deleteEveryoneBtn: document.getElementById('delete-everyone-btn'),
+    deleteForMeBtn: document.getElementById('delete-for-me-btn'),
     cancelMsgDelete: document.getElementById('cancel-msg-delete'),
+    // Context Menu
+    msgContextMenu: document.getElementById('msg-context-menu'),
+    ctxReplyBtn: document.getElementById('ctx-reply-btn'),
+    ctxDeleteBtn: document.getElementById('ctx-delete-btn'),
     // Search & Add Contact
     searchInput: document.getElementById('chat-search-input'),
     openAddModalBtn: document.getElementById('open-add-modal-btn'),
@@ -344,7 +349,7 @@ function initMQTT() {
                     // Account was deleted!
                     if (chatList[friendId]) {
                         chatList[friendId].deleted = true;
-                        chatList[friendId].lastMsg = "This account is deleted";
+                        chatList[friendId].lastMessage = "This account is deleted";
                         saveChatList();
                         renderChatList();
                         
@@ -804,7 +809,7 @@ function appendSingleMessageUI(m, isBatch = false) {
     let statusHtml = "";
     if (isSent) {
         if (m.status === "seen") {
-            statusHtml = `<span class="message-status tick-seen" style="color: #ff3b3b; font-weight: bold; font-size: 0.8rem; margin-left: 4px;">✓✓</span>`;
+            statusHtml = `<span class="message-status tick-seen" style="color: #081c15; font-weight: bold; font-size: 0.8rem; margin-left: 4px;">✓✓</span>`;
         } else {
             statusHtml = `<span class="message-status tick-sent" style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-left: 4px;">✓</span>`;
         }
@@ -847,32 +852,80 @@ function appendSingleMessageUI(m, isBatch = false) {
     wrapper.appendChild(b);
     container.appendChild(wrapper);
 
-    // Swipe For Mobile, Right Click for Laptop/Desktop
+    // Swipe For Mobile
     initSwipe(b, m);
+    
+    // Right Click for Laptop/Desktop
     b.oncontextmenu = (e) => {
         e.preventDefault();
-        showReplyPreview(m);
-        if (window.navigator.vibrate) window.navigator.vibrate(20);
+        openContextMenu(e, m);
     };
 
-    // Initialise Long Press for this message (Delete for everyone)
-    initLongPress(b, m);
+    // Long Press for Mobile
+    initLongPress(b, m, openContextMenu);
 
     if (!isBatch) container.scrollTop = container.scrollHeight;
 }
 
-function initLongPress(el, msgObj) {
+function openContextMenu(e, msgObj) {
+    e.preventDefault();
+    msgToDeleteObj = msgObj;
+    
+    const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth / 2;
+    const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight / 2;
+    
+    DOM.msgContextMenu.style.display = 'block';
+    
+    // Prevent menu from overflowing bounds
+    const rect = DOM.msgContextMenu.getBoundingClientRect();
+    let finalX = x;
+    let finalY = y;
+    
+    if (x + rect.width > window.innerWidth) finalX = window.innerWidth - rect.width - 10;
+    if (y + rect.height > window.innerHeight) finalY = window.innerHeight - rect.height - 10;
+    
+    DOM.msgContextMenu.style.left = finalX + 'px';
+    DOM.msgContextMenu.style.top = finalY + 'px';
+    
+    if (window.navigator.vibrate) window.navigator.vibrate(20);
+}
+
+// Close context menu on outside click
+document.addEventListener('click', (e) => {
+    if (DOM.msgContextMenu && DOM.msgContextMenu.style.display === 'block') {
+        DOM.msgContextMenu.style.display = 'none';
+    }
+});
+document.addEventListener('scroll', () => {
+    if (DOM.msgContextMenu) DOM.msgContextMenu.style.display = 'none';
+}, true);
+
+// Context Menu Bindings
+DOM.ctxReplyBtn.onclick = (e) => {
+    DOM.msgContextMenu.style.display = 'none';
+    if (msgToDeleteObj) showReplyPreview(msgToDeleteObj);
+};
+
+DOM.ctxDeleteBtn.onclick = (e) => {
+    DOM.msgContextMenu.style.display = 'none';
+    if (!msgToDeleteObj) return;
+    
+    if (msgToDeleteObj.senderId === currentUser.id) {
+        // I sent it -> Show 3 options
+        DOM.msgDeleteModal.style.display = 'flex';
+    } else {
+        // They sent it -> Delete for me directly
+        deleteForMeLocally(msgToDeleteObj);
+    }
+};
+
+function initLongPress(el, msgObj, callback) {
     let timer;
     const duration = 600;
 
     const start = (e) => {
         timer = setTimeout(() => {
-            if (msgObj.senderId === currentUser.id) {
-                // Trigger Delete for everyone
-                msgToDeleteObj = msgObj;
-                DOM.msgDeleteModal.style.display = 'flex';
-                if (window.navigator.vibrate) window.navigator.vibrate([30, 10, 30]);
-            }
+            if (callback) callback(e, msgObj);
         }, duration);
     };
 
@@ -883,13 +936,12 @@ function initLongPress(el, msgObj) {
     el.addEventListener('touchstart', start, {passive: true});
     el.addEventListener('touchend', cancel);
     el.addEventListener('touchmove', cancel);
-    el.addEventListener('mousedown', start);
-    el.addEventListener('mouseup', cancel);
-    el.addEventListener('mouseleave', cancel);
 }
 
-DOM.cancelMsgDelete.onclick = () => DOM.msgDeleteModal.style.display = 'none';
-DOM.confirmMsgDelete.onclick = () => {
+// Delete Modal Buttons
+if(DOM.cancelMsgDelete) DOM.cancelMsgDelete.onclick = () => DOM.msgDeleteModal.style.display = 'none';
+
+if(DOM.deleteEveryoneBtn) DOM.deleteEveryoneBtn.onclick = () => {
     if (msgToDeleteObj && mqttClient) {
         const deletePayload = {
             type: "DELETE_SINGLE_MSG",
@@ -900,11 +952,23 @@ DOM.confirmMsgDelete.onclick = () => {
         mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deletePayload));
         
         // Remove locally too
-        removeSingleMessageLocally(deletePayload.roomId, deletePayload.msgId);
-        renderLocalMessages();
+        deleteForMeLocally(msgToDeleteObj);
     }
     DOM.msgDeleteModal.style.display = 'none';
 };
+
+if(DOM.deleteForMeBtn) DOM.deleteForMeBtn.onclick = () => {
+    if (msgToDeleteObj) {
+        deleteForMeLocally(msgToDeleteObj);
+    }
+    DOM.msgDeleteModal.style.display = 'none';
+};
+
+function deleteForMeLocally(msgObj) {
+    const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
+    removeSingleMessageLocally(roomId, msgObj.msgId);
+    renderLocalMessages();
+}
 
 function removeSingleMessageLocally(roomId, msgId) {
     let msgs = JSON.parse(localStorage.getItem(roomId)) || [];
@@ -1075,6 +1139,7 @@ document.getElementById('message-input').addEventListener('paste', (e) => {
                 pendingImage = event.target.result;
                 DOM.imagePreviewImg.src = pendingImage;
                 DOM.imagePreviewArea.style.display = "block";
+                toggleInputButtons();
             };
             reader.readAsDataURL(blob);
         }
@@ -1093,6 +1158,7 @@ DOM.chatFileInput.onchange = (e) => {
         pendingImage = event.target.result;
         DOM.imagePreviewImg.src = pendingImage;
         DOM.imagePreviewArea.style.display = "block";
+        toggleInputButtons();
     };
     reader.readAsDataURL(file);
 };
@@ -1101,6 +1167,7 @@ DOM.closePreviewBtn.onclick = () => {
     pendingImage = null;
     DOM.imagePreviewArea.style.display = "none";
     DOM.chatFileInput.value = "";
+    toggleInputButtons();
 };
 
 // --- Image Compression Utility ---
@@ -1143,9 +1210,8 @@ async function sendMessage() {
     DOM.replyArea.style.display = "none";
     DOM.chatFileInput.value = "";
     
-    // Reset buttons to default (Voice Message)
-    DOM.micBtn.style.display = 'flex';
-    DOM.sendBtn.style.display = 'none';
+    // Reset buttons to default based on value/image
+    toggleInputButtons();
     
     let processedImage = null;
     if (currentPendingImage) {
@@ -1351,7 +1417,7 @@ function updateStatusUI(payload) {
         const timeDiff = Date.now() - lastSeen;
         
         // Simple "last seen" formatting
-        const timeStr = new Date(lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timeStr = new Date(lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
         if (timeDiff < 24 * 3600 * 1000) {
             statusEl.innerText = `last seen today at ${timeStr}`;
         } else {
@@ -1394,16 +1460,18 @@ let recordingStartTime;
 let isRecCancelled = false;
 let startRecX = 0;
 
+function toggleInputButtons() {
+    if (DOM.messageInput.value.trim().length > 0 || pendingImage) {
+        DOM.micBtn.style.display = 'none';
+        DOM.sendBtn.style.display = 'flex';
+    } else {
+        DOM.micBtn.style.display = 'flex';
+        DOM.sendBtn.style.display = 'none';
+    }
+}
+
 function initVoiceUI() {
-    DOM.messageInput.addEventListener('input', () => {
-        if (DOM.messageInput.value.trim().length > 0) {
-            DOM.micBtn.style.display = 'none';
-            DOM.sendBtn.style.display = 'flex';
-        } else {
-            DOM.micBtn.style.display = 'flex';
-            DOM.sendBtn.style.display = 'none';
-        }
-    });
+    DOM.messageInput.addEventListener('input', toggleInputButtons);
 
     // Recording Bindings
     DOM.micBtn.onmousedown = DOM.micBtn.ontouchstart = (e) => {
