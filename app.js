@@ -53,10 +53,25 @@ const DOM = {
     replyArea: document.getElementById('reply-preview-container'),
     replyName: document.getElementById('reply-preview-name'),
     replyText: document.getElementById('reply-preview-text'),
-    closeReplyBtn: document.getElementById('close-reply-btn')
+    closeReplyBtn: document.getElementById('close-reply-btn'),
+    // Delete Msg
+    msgDeleteModal: document.getElementById('delete-msg-modal'),
+    confirmMsgDelete: document.getElementById('confirm-msg-delete'),
+    cancelMsgDelete: document.getElementById('cancel-msg-delete'),
+    // Search & Add Contact
+    searchInput: document.getElementById('chat-search-input'),
+    openAddModalBtn: document.getElementById('open-add-modal-btn'),
+    addContactModal: document.getElementById('add-contact-modal'),
+    newContactIdInput: document.getElementById('new-contact-id'),
+    saveContactBtn: document.getElementById('save-contact-btn'),
+    cancelAddBtn: document.getElementById('cancel-add-btn'),
+    // Permissions
+    permissionModal: document.getElementById('permission-modal'),
+    allowNotifBtn: document.getElementById('allow-notifications-btn')
 };
 
 let replyToMsgObj = null;
+let msgToDeleteObj = null;
 
 let currentUser = null;
 let mqttClient = null;
@@ -318,11 +333,58 @@ function initMQTT() {
 
     mqttClient.on('message', (topic, message) => {
         try {
-            const payload = JSON.parse(message.toString());
+            const raw = message.toString();
+
+            // 1. Handle Global Directory Updates (Retained Messages)
+            if (topic.startsWith('mchat/directory/')) {
+                const friendId = topic.split('/').pop();
+                if (friendId === currentUser.id) return;
+
+                if (!raw || raw === "" || raw === "null") {
+                    // Account was deleted!
+                    if (chatList[friendId]) {
+                        chatList[friendId].deleted = true;
+                        chatList[friendId].lastMsg = "This account is deleted";
+                        saveChatList();
+                        renderChatList();
+                        
+                        // If currently chatting with them, Close it
+                        if (activeChatObj && activeChatObj.id === friendId) {
+                            alert("This account has been deleted.");
+                            DOM.backBtn.click();
+                        }
+                    }
+                    return;
+                }
+
+                const payload = JSON.parse(raw);
+                if (chatList[friendId]) {
+                    console.log(`Syncing profile for ${friendId}...`);
+                    chatList[friendId].deleted = false; 
+                    updateChatList(payload.id, payload.name, payload.avatar, undefined, payload.avatarZoom, payload.avatarX, payload.avatarY);
+                    
+                    // Live update header if chatting
+                    if (activeChatObj && activeChatObj.id === friendId) {
+                        document.getElementById('active-chat-name').innerText = payload.name;
+                        const mini = document.getElementById('active-chat-avatar');
+                        mini.src = payload.avatar || createLetterAvatar(payload.name);
+                        mini.style.transform = `none`;
+                    }
+                }
+                return;
+            }
+
+            // 2. Handle Other Messages
+            const payload = JSON.parse(raw);
             
             // Handle Inbox Messages
             if (topic === `mchat/inbox/${currentUser.id}`) {
                 handleInboxMessage(payload);
+                
+                // Show Notification if not in chat
+                if (activeChatObj?.id !== payload.senderId || document.visibilityState !== 'visible') {
+                    showLocalNotification(payload.senderName, payload.image ? "📷 Photo" : payload.text, payload.senderAvatar);
+                }
             }
             
             // Handle Status Updates
@@ -333,25 +395,29 @@ function initMQTT() {
                 }
             }
 
-            // Handle Global Directory Updates (Retained Messages)
-            if (topic.startsWith('mchat/directory/')) {
-                const friendId = topic.split('/').pop();
-                // Avoid updating self from directory here to prevent loops, though harmless
-                if (friendId !== currentUser.id && chatList[friendId]) {
-                    console.log(`Syncing profile for ${friendId}...`);
-                    updateChatList(payload.id, payload.name, payload.avatar, undefined, payload.avatarZoom, payload.avatarX, payload.avatarY);
-                    
-                    // Live update header if chatting
-                    if (activeChatObj && activeChatObj.id === friendId) {
-                        document.getElementById('active-chat-name').innerText = payload.name;
-                        const mini = document.getElementById('active-chat-avatar');
-                        mini.src = payload.avatar;
-                        mini.style.transform = `scale(${payload.avatarZoom || 1.7}) translate(${payload.avatarX || 0}px, ${payload.avatarY || 0}px)`;
-                    }
+            // --- Real-time Auto-Delete Logic ---
+            
+            // Handle READ_RECEIPT: If our messages were seen, delete them
+            if (payload.type === "READ_RECEIPT") {
+                const roomId = getChatRoomId(currentUser.id, payload.senderId);
+                localStorage.removeItem(roomId);
+                updateChatList(payload.senderId, chatList[payload.senderId].name, chatList[payload.senderId].avatar, "All read & deleted");
+                if (activeChatObj && activeChatObj.id === payload.senderId) {
+                    renderLocalMessages();
                 }
+                return;
+            }
+
+            // Handle DELETE_SINGLE_MSG: Unsend message
+            if (payload.type === "DELETE_SINGLE_MSG") {
+                removeSingleMessageLocally(payload.roomId, payload.msgId);
+                if (activeChatObj && activeChatObj.id === payload.friendId) {
+                    renderLocalMessages();
+                }
+                return;
             }
         } catch (e) {
-            console.error("Message parse error:", e);
+            console.error("Message error:", e);
         }
     });
 }
@@ -384,40 +450,51 @@ function updateChatList(id, name, avatar, lastText) {
     renderChatList();
 }
 
-function renderChatList() {
+function renderChatList(filter = "") {
     const container = document.getElementById('chat-items-list');
     container.innerHTML = "";
     
-    const ordered = Object.values(chatList).sort((a,b) => b.timestamp - a.timestamp);
+    let ordered = Object.values(chatList).sort((a,b) => b.timestamp - a.timestamp);
     
+    if (filter) {
+        ordered = ordered.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()) || c.id.includes(filter));
+    }
+
     if (ordered.length === 0) {
-        container.innerHTML = `<p style="text-align:center; padding:20px; color:#aaa;">No chats yet. Enter a friend's ID to begin!</p>`;
+        container.innerHTML = `<p style="text-align:center; padding:20px; color:#aaa;">${filter ? "No contacts found." : "No chats yet. Click + to add a friend!"}</p>`;
         return;
     }
     
     ordered.forEach(c => {
+        const isDeleted = c.deleted === true;
         const div = document.createElement('div');
         div.className = 'chat-item ripple';
+        if (isDeleted) div.style.opacity = '0.6';
+
         div.onclick = () => {
+            if (isDeleted) {
+                alert("This account has been deleted.");
+                return;
+            }
             c.unread = 0; // Clear unread on open
             saveChatList();
             openChatView(c.name, c.id, c.avatar, c.avatarZoom, c.avatarX, c.avatarY);
         };
         
         const timeStr = new Date(c.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
-        const unreadBadge = c.unread > 0 ? `<span class="unread-count">${c.unread}</span>` : "";
+        const unreadBadge = (c.unread > 0 && !isDeleted) ? `<span class="unread-count">${c.unread}</span>` : "";
         
         div.innerHTML = `
             <div class="avatar-box">
-                <img src="${c.avatar || createLetterAvatar(c.name)}" alt="${c.name}">
+                <img src="${c.avatar || createLetterAvatar(c.name)}" alt="${c.name}" style="${isDeleted ? 'filter: grayscale(1); opacity: 0.5;' : ''}">
             </div>
             <div class="chat-info">
                 <div class="chat-top">
-                    <span class="chat-name">${c.name}</span>
+                    <span class="chat-name">${c.name} ${isDeleted ? "<span style='font-size:0.8rem; color:red; margin-left:5px;'>(Account Deleted)</span>" : ""}</span>
                     <span class="chat-time">${timeStr}</span>
                 </div>
                 <div class="chat-bottom">
-                    <span class="chat-preview">${c.lastMessage}</span>
+                    <span class="chat-preview">${isDeleted ? "This account is deleted" : c.lastMessage}</span>
                     ${unreadBadge}
                 </div>
             </div>
@@ -432,12 +509,11 @@ function saveChatList() {
 
 // Directory Search & Friend Adding
 function startNewChat() {
-    const friendId = document.getElementById('new-chat-input').value.trim();
+    const friendId = DOM.newContactIdInput.value.trim();
     if(friendId.length < 5 || friendId === currentUser.id) return alert("Invalid ID");
     
-    const addBtn = document.getElementById('add-friend-btn');
-    addBtn.innerText = "Checking...";
-    addBtn.disabled = true;
+    DOM.saveContactBtn.innerText = "Checking...";
+    DOM.saveContactBtn.disabled = true;
 
     // We verify by subscribing to their directory topic
     const directoryTopic = `mchat/directory/${friendId}`;
@@ -447,8 +523,18 @@ function startNewChat() {
     const directoryListener = (topic, message) => {
         if (topic === directoryTopic) {
             found = true;
+            const raw = message.toString();
+            if (!raw || raw === "" || raw === "null") {
+                mqttClient.unsubscribe(directoryTopic);
+                mqttClient.removeListener('message', directoryListener);
+                alert("This account has been deleted.");
+                DOM.saveContactBtn.innerText = "Save Contact";
+                DOM.saveContactBtn.disabled = false;
+                return;
+            }
+
             try {
-                const profile = JSON.parse(message.toString());
+                const profile = JSON.parse(raw);
                 mqttClient.unsubscribe(directoryTopic);
                 mqttClient.removeListener('message', directoryListener);
                 
@@ -456,12 +542,15 @@ function startNewChat() {
                 updateChatList(profile.id, profile.name, profile.avatar, "");
                 
                 // Reset UI & Open Chat
-                document.getElementById('new-chat-input').value = "";
-                addBtn.innerText = "Start Chat";
-                addBtn.disabled = false;
+                DOM.newContactIdInput.value = "";
+                DOM.saveContactBtn.innerText = "Save Contact";
+                DOM.saveContactBtn.disabled = false;
+                DOM.addContactModal.style.display = 'none';
                 
                 openChatView(profile.name, profile.id, profile.avatar);
-            } catch(e) {}
+            } catch(e) {
+                console.error("Discovery parse error:", e);
+            }
         }
     };
     
@@ -474,10 +563,26 @@ function startNewChat() {
             mqttClient.unsubscribe(directoryTopic);
             mqttClient.removeListener('message', directoryListener);
             alert("This account does not exist.");
-            addBtn.innerText = "Start Chat";
-            addBtn.disabled = false;
+            DOM.saveContactBtn.innerText = "Save Contact";
+            DOM.saveContactBtn.disabled = false;
         }
-    }, 3000);
+    }, 4000);
+}
+
+// --- Search & Add Modal Listeners ---
+if (DOM.searchInput) {
+    DOM.searchInput.addEventListener('input', (e) => {
+        renderChatList(e.target.value);
+    });
+}
+
+if (DOM.openAddModalBtn) {
+    DOM.openAddModalBtn.onclick = () => {
+        DOM.addContactModal.style.display = 'flex';
+        DOM.newContactIdInput.focus();
+    };
+    DOM.cancelAddBtn.onclick = () => DOM.addContactModal.style.display = 'none';
+    DOM.saveContactBtn.onclick = startNewChat;
 }
 
 // --- Chat View & Messaging ---
@@ -505,6 +610,14 @@ function openChatView(name, id, avatar, zoom, x, y) {
     // Subscribe to current friend's status
     if (mqttClient) {
         mqttClient.subscribe(`mchat/status/${id}`);
+        
+        // Send READ signal to friend
+        const readSignal = {
+            type: "READ_RECEIPT",
+            senderId: currentUser.id,
+            timestamp: Date.now()
+        };
+        mqttClient.publish(`mchat/inbox/${id}`, JSON.stringify(readSignal));
     }
 }
 
@@ -590,8 +703,61 @@ function appendSingleMessageUI(m, isBatch = false) {
 
     // Initialise Swipe for this message
     initSwipe(b, m);
+    // Initialise Long Press for this message
+    initLongPress(b, m);
 
     if (!isBatch) container.scrollTop = container.scrollHeight;
+}
+
+function initLongPress(el, msgObj) {
+    let timer;
+    const duration = 600;
+
+    const start = (e) => {
+        timer = setTimeout(() => {
+            if (msgObj.senderId === currentUser.id) {
+                // Trigger Delete for everyone
+                msgToDeleteObj = msgObj;
+                DOM.msgDeleteModal.style.display = 'flex';
+                if (window.navigator.vibrate) window.navigator.vibrate([30, 10, 30]);
+            }
+        }, duration);
+    };
+
+    const cancel = () => {
+        clearTimeout(timer);
+    };
+
+    el.addEventListener('touchstart', start, {passive: true});
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('touchmove', cancel);
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', cancel);
+    el.addEventListener('mouseleave', cancel);
+}
+
+DOM.cancelMsgDelete.onclick = () => DOM.msgDeleteModal.style.display = 'none';
+DOM.confirmMsgDelete.onclick = () => {
+    if (msgToDeleteObj && mqttClient) {
+        const deletePayload = {
+            type: "DELETE_SINGLE_MSG",
+            msgId: msgToDeleteObj.msgId,
+            friendId: currentUser.id, // who sent it
+            roomId: getChatRoomId(currentUser.id, activeChatObj.id)
+        };
+        mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deletePayload));
+        
+        // Remove locally too
+        removeSingleMessageLocally(deletePayload.roomId, deletePayload.msgId);
+        renderLocalMessages();
+    }
+    DOM.msgDeleteModal.style.display = 'none';
+};
+
+function removeSingleMessageLocally(roomId, msgId) {
+    let msgs = JSON.parse(localStorage.getItem(roomId)) || [];
+    msgs = msgs.filter(m => m.msgId !== msgId);
+    localStorage.setItem(roomId, JSON.stringify(msgs));
 }
 
 function initSwipe(el, msgObj) {
@@ -717,29 +883,10 @@ DOM.backBtn.addEventListener('click', () => {
         // Unsubscribe from status updates to save bandwidth
         mqttClient.unsubscribe(`mchat/status/${activeChatObj.id}`);
         
+        // Final Auto-Delete on Seen: When we leave, we've seen everything
         const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
-        const msgs = getLocalMessages();
-        
-        if (msgs.length > 0) {
-            // 1. Check if we actually viewed something from them
-            const hasIncoming = msgs.some(m => m.senderId !== currentUser.id);
-            
-            // 2. Clear our own local history regardless (Chat Session ended)
-            localStorage.removeItem(roomId);
-            updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "Chat history cleared");
-
-            // 3. If we were the recipient, tell the sender to wipe their side too
-            if (hasIncoming) {
-                const deleteSignal = {
-                    type: "DELETE_HISTORY",
-                    senderId: currentUser.id,
-                    senderName: currentUser.name,
-                    senderAvatar: currentUser.avatar,
-                    timestamp: Date.now()
-                };
-                mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(deleteSignal));
-            }
-        }
+        localStorage.removeItem(roomId);
+        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "All seen & deleted");
     }
     DOM.chatView.classList.remove('open');
     activeChatObj = null;
@@ -872,25 +1019,23 @@ if (DOM.settingsBtn) {
     const hardRefreshBtn = document.getElementById('hard-refresh-btn');
     if (hardRefreshBtn) {
         hardRefreshBtn.addEventListener('click', () => {
-            if (confirm("Hard refresh will reload the app to fetch the latest updates. Continue?")) {
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistrations().then(registrations => {
-                        for (let registration of registrations) {
-                            registration.unregister();
-                        }
-                        // Clear caches if supported
-                        if ('caches' in window) {
-                            caches.keys().then(names => {
-                                for (let name of names) caches.delete(name);
-                            });
-                        }
-                        setTimeout(() => {
-                            window.location.reload(true);
-                        }, 500);
-                    });
-                } else {
-                    window.location.reload(true);
-                }
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                    }
+                    // Clear caches if supported
+                    if ('caches' in window) {
+                        caches.keys().then(names => {
+                            for (let name of names) caches.delete(name);
+                        });
+                    }
+                    setTimeout(() => {
+                        window.location.reload(true);
+                    }, 500);
+                });
+            } else {
+                window.location.reload(true);
             }
         });
     }
@@ -919,9 +1064,10 @@ if (DOM.settingsBtn) {
     DOM.confirmDeleteBtn.addEventListener('click', () => {
         DOM.deleteModal.style.display = 'none';
         
-        // 1. Remove self from global directory before disconnecting
+        // 1. Remove self from global directory and status before disconnecting
         if(mqttClient && currentUser) {
             mqttClient.publish(`mchat/directory/${currentUser.id}`, "", { retain: true }); 
+            mqttClient.publish(`mchat/status/${currentUser.id}`, "", { retain: true }); 
         }
 
         // 2. Clear all local state
@@ -1070,4 +1216,48 @@ function scrollToMessage(msgId) {
 }
 
 // Let's go!
+checkPermissionModal();
 window.addEventListener('DOMContentLoaded', initApp);
+
+function checkPermissionModal() {
+    const prompted = localStorage.getItem('mchat_notif_prompted');
+    if (!prompted && Notification.permission !== 'granted') {
+        setTimeout(() => {
+            DOM.permissionModal.style.display = 'flex';
+        }, 1500);
+    }
+}
+
+DOM.allowNotifBtn.onclick = () => {
+    Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+            localStorage.setItem('mchat_notif_prompted', 'true');
+            DOM.permissionModal.style.display = 'none';
+            new Notification("M-Chat", { body: "Notifications enabled successfully!", icon: "./icons/icon-192x192.png" });
+        } else {
+            alert("M-Chat requires notifications to work in the background. Please allow them in your browser/site settings.");
+        }
+    });
+};
+
+function showLocalNotification(senderName, text, avatar) {
+    if (Notification.permission === 'granted') {
+        const options = {
+            body: text,
+            icon: avatar || "./icons/icon-192x192.png",
+            badge: "./icons/icon-192x192.png",
+            timestamp: Date.now(),
+            vibrate: [200, 100, 200],
+            data: { url: window.location.href }
+        };
+        
+        // Use Service Worker if available for better background behavior
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(senderName, options);
+            });
+        } else {
+            new Notification(senderName, options);
+        }
+    }
+}

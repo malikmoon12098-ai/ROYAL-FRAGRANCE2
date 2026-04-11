@@ -125,12 +125,14 @@
         </nav>
 
         <main id="chat-list-container">
-            <div class="search-bar-container">
-                <div style="display:flex; gap:10px;">
-                    <input type="text" placeholder="Enter friend's 0200 ID..." id="new-chat-input" style="flex:1;">
-                    <button id="add-friend-btn" class="primary-btn" style="width: auto; padding: 10px 15px;">Start Chat</button>
+            <div class="search-container">
+                <div class="search-bar-wrapper glass">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="chat-search-input" placeholder="Search contacts...">
                 </div>
+                <button id="open-add-modal-btn" class="add-friend-btn glass">+</button>
             </div>
+            
             <div id="chat-items-list">
                 <!-- Chat items will be injected here -->
                 <div class="chat-item ripple">
@@ -210,6 +212,19 @@
         </div>
     </div>
 
+    <!-- Permissions Center Modal -->
+    <div id="permission-modal" class="modal-backdrop" style="display:none; z-index: 10000;">
+        <div class="modal-box glass" style="max-width: 350px; text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🔔</div>
+            <h3 style="margin-bottom: 10px;">Enable Notifications</h3>
+            <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 25px;">To receive messages while the app is in the background, please allow notifications.</p>
+            
+            <div class="modal-actions" style="flex-direction: column; gap: 10px;">
+                <button id="allow-notifications-btn" class="primary-btn" style="width: 100%;">Enable & Continue</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Profile Modal -->
     <div id="edit-profile-modal" class="modal-backdrop" style="display:none;">
         <div class="modal-box glass">
@@ -224,6 +239,18 @@
             <div class="modal-actions">
                 <button id="cancel-edit-btn" class="modal-btn cancel-btn">Cancel</button>
                 <button id="save-edit-btn" class="modal-btn save-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Message Modal -->
+    <div id="delete-msg-modal" class="modal-backdrop" style="display:none; z-index: 9999;">
+        <div class="modal-box glass">
+            <h3>Delete for Everyone?</h3>
+            <p>This message will be removed from both sides.</p>
+            <div class="modal-actions">
+                <button id="cancel-msg-delete" class="modal-btn cancel-btn">Cancel</button>
+                <button id="confirm-msg-delete" class="modal-btn delete-btn" style="background: #ff3b3b;">Delete</button>
             </div>
         </div>
     </div>

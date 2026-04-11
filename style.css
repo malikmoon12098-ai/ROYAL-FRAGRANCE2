@@ -641,6 +641,61 @@ p {
     font-size: 1rem !important;
 }
 
+/* --- Search & Add Contact --- */
+.search-container {
+    padding: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-bar-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 5px 15px;
+    border-radius: 25px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+}
+
+.search-icon {
+    margin-right: 10px;
+    opacity: 0.6;
+    font-size: 0.9rem;
+}
+
+#chat-search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    width: 100%;
+    padding: 8px 0;
+    font-size: 0.95rem;
+}
+
+.add-friend-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border-glass);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--primary);
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-friend-btn:hover {
+    background: var(--primary-dark);
+    color: white;
+    transform: scale(1.05);
+}
+
 /* Fade In Animation */
 .fade-in {
     animation: fadeIn 0.5s ease;
