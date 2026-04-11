@@ -255,6 +255,21 @@
         </div>
     </div>
 
+    <!-- Add Contact Modal -->
+    <div id="add-contact-modal" class="modal-backdrop" style="display:none;">
+        <div class="modal-box glass">
+            <h3>Add New Contact</h3>
+            <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px;">Enter the 0200 ID to start chatting.</p>
+            <div class="input-group">
+                <input type="text" id="new-contact-id" placeholder="Enter ID (e.g., 0200...)" autocomplete="off">
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button id="cancel-add-btn" class="modal-btn cancel-btn">Cancel</button>
+                <button id="save-contact-btn" class="modal-btn save-btn">Save Contact</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
