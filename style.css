@@ -676,18 +676,20 @@ p {
 }
 
 .add-friend-btn {
-    width: 42px;
+    padding: 0 15px;
     height: 42px;
-    border-radius: 50%;
+    border-radius: 12px;
     border: 1px solid var(--border-glass);
     background: rgba(255, 255, 255, 0.05);
     color: var(--primary);
-    font-size: 1.5rem;
+    font-size: 0.85rem;
+    font-weight: 500;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .add-friend-btn:hover {

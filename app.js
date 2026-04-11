@@ -358,7 +358,7 @@ function initMQTT() {
                 }
 
                 const payload = JSON.parse(raw);
-                if (chatList[friendId]) {
+                if (chatList[friendId] && payload && payload.name) {
                     console.log(`Syncing profile for ${friendId}...`);
                     chatList[friendId].deleted = false; 
                     updateChatList(payload.id, payload.name, payload.avatar, undefined, payload.avatarZoom, payload.avatarX, payload.avatarY);
@@ -398,7 +398,8 @@ function initMQTT() {
             // --- Real-time Auto-Delete Logic ---
             
             // Handle READ_RECEIPT: If our messages were seen, delete them
-            if (payload.type === "READ_RECEIPT") {
+            // Handle CHAT_CLOSED_DELETE: When friend finishes reading, delete on our side too
+            if (payload.type === "CHAT_CLOSED_DELETE") {
                 const roomId = getChatRoomId(currentUser.id, payload.senderId);
                 localStorage.removeItem(roomId);
                 updateChatList(payload.senderId, chatList[payload.senderId].name, chatList[payload.senderId].avatar, "All read & deleted");
@@ -434,11 +435,10 @@ function updateChatList(id, name, avatar, lastText) {
     if (!chatList[id]) {
         chatList[id] = { id, name, avatar, lastMessage: "", timestamp: Date.now() };
     }
-    // Always overwrite with newest info if provided
+    // Always overwrite with newest info if provided (avoid undefined)
     if (name) {
         chatList[id].name = name;
-        // Force letter avatar for consistency
-        chatList[id].avatar = createLetterAvatar(name);
+        chatList[id].avatar = avatar || createLetterAvatar(name);
     }
     
     if (lastText !== undefined) {
@@ -610,16 +610,48 @@ function openChatView(name, id, avatar, zoom, x, y) {
     // Subscribe to current friend's status
     if (mqttClient) {
         mqttClient.subscribe(`mchat/status/${id}`);
-        
-        // Send READ signal to friend
-        const readSignal = {
-            type: "READ_RECEIPT",
+    }
+}
+
+// --- Chat Closure and Auto-Delete Finalisation ---
+function closeActiveChatAndClear() {
+    if (!activeChatObj || !mqttClient) return;
+
+    const friendId = activeChatObj.id;
+    const roomId = getChatRoomId(currentUser.id, friendId);
+
+    // Get current messages to see if we reached 'Recipient' status
+    const msgs = JSON.parse(localStorage.getItem(roomId)) || [];
+    const hasReceived = msgs.some(m => m.senderId === friendId);
+
+    // ONLY delete and notify if we were the recipient of some messages
+    // If we only SENT messages, we wait for the OTHER person to seen and delete.
+    if (hasReceived) {
+        // 1. Send FINAL deletion signal to friend
+        const closeSignal = {
+            type: "CHAT_CLOSED_DELETE",
             senderId: currentUser.id,
             timestamp: Date.now()
         };
-        mqttClient.publish(`mchat/inbox/${id}`, JSON.stringify(readSignal));
+        mqttClient.publish(`mchat/inbox/${friendId}`, JSON.stringify(closeSignal));
+
+        // 2. Delete locally
+        localStorage.removeItem(roomId);
+        
+        // 3. Update UI
+        updateChatList(friendId, activeChatObj.name, activeChatObj.avatar, "All read & deleted");
     }
+    
+    // 4. Reset View State (Always)
+    mqttClient.unsubscribe(`mchat/status/${friendId}`);
+    activeChatObj = null;
+    DOM.chatView.classList.remove('open');
+    renderChatList();
 }
+
+DOM.backBtn.onclick = () => {
+    closeActiveChatAndClear();
+};
 
 function getLocalMessages() {
     if (!activeChatObj) return [];
@@ -701,9 +733,15 @@ function appendSingleMessageUI(m, isBatch = false) {
     wrapper.appendChild(b);
     container.appendChild(wrapper);
 
-    // Initialise Swipe for this message
+    // Swipe For Mobile, Right Click for Laptop/Desktop
     initSwipe(b, m);
-    // Initialise Long Press for this message
+    b.oncontextmenu = (e) => {
+        e.preventDefault();
+        showReplyPreview(m);
+        if (window.navigator.vibrate) window.navigator.vibrate(20);
+    };
+
+    // Initialise Long Press for this message (Delete for everyone)
     initLongPress(b, m);
 
     if (!isBatch) container.scrollTop = container.scrollHeight;
@@ -810,6 +848,12 @@ DOM.closeReplyBtn.onclick = () => {
     DOM.replyArea.style.display = "none";
 };
 function handleInboxMessage(payload) {
+    if (!payload || !payload.senderId) return;
+
+    // Guard: Don't process non-message signals as standard messages
+    const signalTypes = ["READ_RECEIPT", "CHAT_CLOSED_DELETE", "DELETE_SINGLE_MSG"];
+    if (payload.type && signalTypes.includes(payload.type)) return;
+
     const roomId = getChatRoomId(currentUser.id, payload.senderId);
     
     // Handle Profile Update Signal
@@ -1197,6 +1241,7 @@ document.addEventListener('visibilitychange', () => {
         updateStatus("online");
     } else {
         updateStatus("offline");
+        // Automated closure on tab-hide removed as per user request to avoid accidental deletion
     }
 });
 
