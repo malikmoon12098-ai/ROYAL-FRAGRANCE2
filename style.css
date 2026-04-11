@@ -751,7 +751,7 @@ p {
 }
 
 .tick-sent { color: rgba(255,255,255,0.6); }
-.tick-seen { color: #34b7f1; font-weight: bold; }
+.tick-seen { color: #ff3b3b; font-weight: bold; }
 /* Swipe to Reply Styles */
 .message-wrapper {
     position: relative;

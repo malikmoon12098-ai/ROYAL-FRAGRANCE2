@@ -804,7 +804,7 @@ function appendSingleMessageUI(m, isBatch = false) {
     let statusHtml = "";
     if (isSent) {
         if (m.status === "seen") {
-            statusHtml = `<span class="message-status tick-seen" style="color: #34b7f1; font-weight: bold; font-size: 0.8rem; margin-left: 4px;">✓✓</span>`;
+            statusHtml = `<span class="message-status tick-seen" style="color: #ff3b3b; font-weight: bold; font-size: 0.8rem; margin-left: 4px;">✓✓</span>`;
         } else {
             statusHtml = `<span class="message-status tick-sent" style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-left: 4px;">✓</span>`;
         }
