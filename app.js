@@ -67,7 +67,12 @@ const DOM = {
     cancelAddBtn: document.getElementById('cancel-add-btn'),
     // Permissions
     permissionModal: document.getElementById('permission-modal'),
-    allowNotifBtn: document.getElementById('allow-notifications-btn')
+    allowNotifBtn: document.getElementById('allow-notifications-btn'),
+    // Voice elements
+    micBtn: document.getElementById('mic-btn'),
+    sendBtn: document.getElementById('send-btn'),
+    recordingOverlay: document.getElementById('recording-overlay'),
+    messageInput: document.getElementById('message-input')
 };
 
 let replyToMsgObj = null;
@@ -90,19 +95,14 @@ async function initApp() {
     if (isStandalone) {
         startBootFlow();
     } else {
-        // We still show the install screen but allow skipping
+        // Force the install screen - no more skipping
         showScreen('install');
-        // If they already have data, maybe they just want to use the web version
-        if (localStorage.getItem('mchat_currentUser')) {
-            startBootFlow(); 
-        }
     }
 }
 
 // Global binding for the skip button
 document.addEventListener('DOMContentLoaded', () => {
-    const skipBtn = document.getElementById('skip-install-btn');
-    if (skipBtn) skipBtn.onclick = () => startBootFlow();
+    // skip-install listener removed to enforce mandatory installation
 });
 
 // Separate boot flow for cleaner logic
@@ -379,13 +379,17 @@ function initMQTT() {
             
             // Handle Inbox Messages
             if (topic === `mchat/inbox/${currentUser.id}`) {
-                handleInboxMessage(payload);
-                
-                // Show Notification if not in chat
-                if (activeChatObj?.id !== payload.senderId || document.visibilityState !== 'visible') {
-                    showLocalNotification(payload.senderName, payload.image ? "📷 Photo" : payload.text, payload.senderAvatar);
+                // Ignore system messages from our own handleInboxMessage if they match
+                if (payload.type === "VOICE_LISTENED") {
+                    const roomId = getChatRoomId(currentUser.id, payload.senderId);
+                    removeSingleMessageLocally(roomId, payload.msgId);
+                    if (activeChatObj && activeChatObj.id === payload.senderId) {
+                        renderLocalMessages();
+                        appendSystemMessage("Recipient has listened to your voice message.");
+                    }
+                    return;
                 }
-            }
+                handleInboxMessage(payload);
             
             // Handle Status Updates
             if (topic.startsWith('mchat/status/') && activeChatObj) {
@@ -398,23 +402,33 @@ function initMQTT() {
             // --- Real-time Auto-Delete Logic ---
             
             // Handle READ_RECEIPT: If our messages were seen, delete them
-            // Handle CHAT_CLOSED_DELETE: When friend finishes reading, delete on our side too
-            if (payload.type === "CHAT_CLOSED_DELETE") {
+            // Handle MESSAGES_SEEN: Friend has read our messages
+            if (payload.type === "MESSAGES_SEEN") {
                 const roomId = getChatRoomId(currentUser.id, payload.senderId);
-                localStorage.removeItem(roomId);
-                updateChatList(payload.senderId, chatList[payload.senderId].name, chatList[payload.senderId].avatar, "All read & deleted");
-                if (activeChatObj && activeChatObj.id === payload.senderId) {
-                    renderLocalMessages();
+                let stored = localStorage.getItem(roomId);
+                if (stored) {
+                    let msgs = JSON.parse(stored);
+                    let changed = false;
+                    msgs.forEach(m => {
+                        if (m.senderId === currentUser.id && m.status !== "seen") {
+                            m.status = "seen";
+                            m.seenAt = Date.now();
+                            changed = true;
+                        }
+                    });
+                    if (changed) {
+                        localStorage.setItem(roomId, JSON.stringify(msgs));
+                        if (activeChatObj && activeChatObj.id === payload.senderId) {
+                            renderLocalMessages();
+                        }
+                    }
                 }
                 return;
             }
 
-            // Handle DELETE_SINGLE_MSG: Unsend message
-            if (payload.type === "DELETE_SINGLE_MSG") {
-                removeSingleMessageLocally(payload.roomId, payload.msgId);
-                if (activeChatObj && activeChatObj.id === payload.friendId) {
-                    renderLocalMessages();
-                }
+            // Handle CHAT_CLOSED_DELETE: Legacy signal - no longer needed with 24h system but kept for catch-all
+            // Actually, we should probably remove it to follow the 24h requirement strictly
+            if (payload.type === "CHAT_CLOSED_DELETE") {
                 return;
             }
         } catch (e) {
@@ -604,7 +618,31 @@ function openChatView(name, id, avatar, zoom, x, y) {
     mini.style.transform = `none`;
     DOM.chatView.classList.add('open');
     
-    // Show local history
+    // Logic: Mark incoming messages as seen and notify sender
+    const roomId = getChatRoomId(currentUser.id, id);
+    let stored = localStorage.getItem(roomId);
+    if (stored) {
+        let msgs = JSON.parse(stored);
+        let changed = false;
+        msgs.forEach(m => {
+            if (m.senderId !== currentUser.id && m.status !== "seen") {
+                m.status = "seen";
+                m.seenAt = Date.now();
+                changed = true;
+            }
+        });
+        if (changed) {
+            localStorage.setItem(roomId, JSON.stringify(msgs));
+            // Notify sender
+            const seenSignal = {
+                type: "MESSAGES_SEEN",
+                senderId: currentUser.id,
+                timestamp: Date.now()
+            };
+            mqttClient.publish(`mchat/inbox/${id}`, JSON.stringify(seenSignal));
+        }
+    }
+
     renderLocalMessages();
 
     // Subscribe to current friend's status
@@ -612,6 +650,41 @@ function openChatView(name, id, avatar, zoom, x, y) {
         mqttClient.subscribe(`mchat/status/${id}`);
     }
 }
+
+// --- Background Clean-up for 24h Deletion ---
+function cleanupExpiredMessages() {
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    
+    // Check all chat rooms in localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('mchat_room_')) {
+            const data = localStorage.getItem(key);
+            try {
+                let msgs = JSON.parse(data);
+                let originalCount = msgs.length;
+                // Keep only messages that haven't been seen for 24h
+                msgs = msgs.filter(m => {
+                    if (m.status === "seen" && m.seenAt) {
+                        return (now - m.seenAt) < twentyFourHours;
+                    }
+                    return true;
+                });
+                
+                if (msgs.length !== originalCount) {
+                    if (msgs.length === 0) {
+                        localStorage.removeItem(key);
+                    } else {
+                        localStorage.setItem(key, JSON.stringify(msgs));
+                    }
+                }
+            } catch(e) {}
+        }
+    }
+}
+// Run periodically
+setInterval(cleanupExpiredMessages, 60000); // Every minute
 
 // --- Chat Closure and Auto-Delete Finalisation ---
 function closeActiveChatAndClear() {
@@ -674,6 +747,7 @@ function saveLocalMessage(roomId, msgObj) {
 
 function renderLocalMessages() {
     if (!activeChatObj) return;
+    cleanupExpiredMessages(); // Purge old ones first
     const msgs = getLocalMessages();
     const container = document.getElementById('message-container');
     container.innerHTML = "";
@@ -684,12 +758,24 @@ function renderLocalMessages() {
     container.scrollTop = container.scrollHeight;
 }
 
+function appendSystemMessage(text) {
+    const container = document.getElementById('message-container');
+    const div = document.createElement('div');
+    div.style.cssText = "text-align:center; padding:10px; font-size:0.8rem; color:var(--primary); opacity:0.8;";
+    div.innerText = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
 function appendSingleMessageUI(m, isBatch = false) {
     const isSent = m.senderId === currentUser.id;
     const container = document.getElementById('message-container');
     
+    // Auto cleanup logic check inside render
+    if (m.type === "VOICE_EXPIRED") return;
+
     const wrapper = document.createElement('div');
-    wrapper.classList.add('message-wrapper');
+    wrapper.classList.add('message-wrapper', isSent ? 'sent' : 'received');
     wrapper.id = m.msgId; // Anchor for scrolling to replies
     
     // Swipe Icon
@@ -717,12 +803,57 @@ function appendSingleMessageUI(m, isBatch = false) {
     if (m.image) {
         contentHtml += `<img src="${m.image}" style="width:100%; border-radius:8px; margin-bottom:5px; display:block;">`;
     }
+    if (m.audio) {
+        contentHtml += `
+            <div class="voice-bubble" style="display:flex; align-items:center; gap:10px; padding:5px 0;">
+                <audio controls controlsList="nodownload" style="height:35px; width:200px;">
+                    <source src="${m.audio}" type="audio/webm">
+                </audio>
+            </div>
+        `;
+    }
     if (m.text) {
         contentHtml += `<div>${m.text}</div>`;
     }
-    
     const timeStr = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true});
-    b.innerHTML = `${contentHtml} <span class="message-time">${timeStr}</span>`;
+    
+    // Status Ticks Logic: Sent (1 tick), Seen (2 blue ticks)
+    let statusHtml = "";
+    if (isSent) {
+        if (m.status === "seen") {
+            statusHtml = `<span class="message-status tick-seen" style="color: #34b7f1; font-weight: bold; font-size: 0.8rem; margin-left: 4px;">✓✓</span>`;
+        } else {
+            statusHtml = `<span class="message-status tick-sent" style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-left: 4px;">✓</span>`;
+        }
+    }
+
+    b.innerHTML = `
+        ${contentHtml} 
+        <div style="display:flex; justify-content:flex-end; align-items:center; gap:4px; margin-top: 2px;">
+            <span class="message-time" style="font-size: 0.65rem; opacity: 0.7;">${timeStr}</span>
+            ${statusHtml}
+        </div>
+    `;
+
+    // Voice One-Time Logic
+    const voicePlayer = b.querySelector('audio');
+    if (voicePlayer && !isSent) {
+        voicePlayer.onended = () => {
+            const roomId = getChatRoomId(currentUser.id, m.senderId);
+            // 1. Send signal back to sender
+            const listenSignal = {
+                type: "VOICE_LISTENED",
+                senderId: currentUser.id,
+                msgId: m.msgId,
+                timestamp: Date.now()
+            };
+            mqttClient.publish(`mchat/inbox/${m.senderId}`, JSON.stringify(listenSignal));
+
+            // 2. Self destruct locally
+            removeSingleMessageLocally(roomId, m.msgId);
+            renderLocalMessages();
+        };
+    }
     
     // Add click listener to image for lightbox
     const img = b.querySelector('img');
@@ -922,20 +1053,6 @@ function handleInboxMessage(payload) {
     }
 }
 
-DOM.backBtn.addEventListener('click', () => {
-    if (activeChatObj && mqttClient) {
-        // Unsubscribe from status updates to save bandwidth
-        mqttClient.unsubscribe(`mchat/status/${activeChatObj.id}`);
-        
-        // Final Auto-Delete on Seen: When we leave, we've seen everything
-        const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
-        localStorage.removeItem(roomId);
-        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "All seen & deleted");
-    }
-    DOM.chatView.classList.remove('open');
-    activeChatObj = null;
-});
-
 document.getElementById('send-btn').addEventListener('click', sendMessage);
 document.getElementById('message-input').addEventListener('keypress', (e) => {
     if(e.key === 'Enter') sendMessage();
@@ -1044,7 +1161,8 @@ async function sendMessage() {
             text: currentReplyTo.text,
             image: currentReplyTo.image
         } : null,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        status: "sent" // Initial status: Single Tick
     };
     
     if (saveLocalMessage(roomId, msgPayload)) {
@@ -1260,8 +1378,117 @@ function scrollToMessage(msgId) {
     }
 }
 
+// --- Voice Message Logic (Hold & Record) ---
+let mediaRecorder;
+let audioChunks = [];
+let recordingStartTime;
+let isRecCancelled = false;
+let startRecX = 0;
+
+function initVoiceUI() {
+    DOM.messageInput.addEventListener('input', () => {
+        if (DOM.messageInput.value.trim().length > 0) {
+            DOM.micBtn.style.display = 'none';
+            DOM.sendBtn.style.display = 'flex';
+        } else {
+            DOM.micBtn.style.display = 'flex';
+            DOM.sendBtn.style.display = 'none';
+        }
+    });
+
+    // Recording Bindings
+    DOM.micBtn.onmousedown = DOM.micBtn.ontouchstart = (e) => {
+        e.preventDefault();
+        startRecording(e);
+    };
+
+    window.onmousemove = window.ontouchmove = (e) => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            const x = e.clientX || e.touches[0].clientX;
+            if (Math.abs(x - startRecX) > 80) {
+                isRecCancelled = true;
+                stopRecording();
+            }
+        }
+    };
+
+    window.onmouseup = window.ontouchend = (e) => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            stopRecording();
+        }
+    };
+}
+
+async function startRecording(e) {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        isRecCancelled = false;
+        startRecX = e.clientX || e.touches[0].clientX;
+        
+        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+        mediaRecorder.onstop = handleRecordingStop;
+        
+        mediaRecorder.start();
+        DOM.micBtn.classList.add('active');
+        DOM.recordingOverlay.style.display = 'flex';
+        recordingStartTime = Date.now();
+    } catch (err) {
+        alert("Camera/Mic permission needed for voice messages.");
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder) mediaRecorder.stop();
+}
+
+function handleRecordingStop() {
+    DOM.micBtn.classList.remove('active');
+    DOM.recordingOverlay.style.display = 'none';
+    
+    if (isRecCancelled) {
+        console.log("Recording cancelled.");
+        return;
+    }
+
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = () => {
+        const base64Audio = reader.result;
+        // Check size (HiveMQ 256KB limit)
+        if (base64Audio.length > 200000) {
+            return alert("Voice message too long! Please keep it under 10 seconds.");
+        }
+        sendVoiceMessage(base64Audio);
+    };
+}
+
+function sendVoiceMessage(audioData) {
+    if (!activeChatObj || !mqttClient) return;
+
+    const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
+    const msgPayload = {
+        msgId: 'msg_' + Date.now() + Math.random().toString(16).substr(2, 4),
+        senderId: currentUser.id,
+        senderName: currentUser.name,
+        senderAvatar: currentUser.avatar,
+        status: "sent",
+        timestamp: Date.now(),
+        audio: audioData
+    };
+
+    if (saveLocalMessage(roomId, msgPayload)) {
+        appendSingleMessageUI(msgPayload);
+        mqttClient.publish(`mchat/inbox/${activeChatObj.id}`, JSON.stringify(msgPayload), { qos: 1 });
+        updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, "🎤 Voice Message");
+    }
+}
+
 // Let's go!
 checkPermissionModal();
+initVoiceUI();
 window.addEventListener('DOMContentLoaded', initApp);
 
 function checkPermissionModal() {
