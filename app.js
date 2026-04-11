@@ -867,6 +867,7 @@ async function sendMessage() {
 
 // --- Settings & Profile Logic ---
 
+if (DOM.settingsBtn) {
     // --- Hard Refresh ---
     const hardRefreshBtn = document.getElementById('hard-refresh-btn');
     if (hardRefreshBtn) {
