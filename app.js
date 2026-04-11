@@ -21,6 +21,8 @@ const DOM = {
     settingsBtn: document.getElementById('settings-btn'),
     settingsDropdown: document.getElementById('settings-dropdown'),
     editProfileBtn: document.getElementById('edit-profile-btn'),
+    blockListBtn: document.getElementById('block-list-btn'),
+    shareAppBtn: document.getElementById('share-app-btn'),
     deleteAccountBtn: document.getElementById('delete-account-btn'),
     // Modals
     deleteModal: document.getElementById('delete-modal'),
@@ -914,6 +916,20 @@ function appendSingleMessageUI(m, isBatch = false) {
             </div>
         `;
     }
+    
+    if (m.file) {
+        contentHtml += `
+            <div class="file-bubble" style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; margin-bottom: 5px; border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 12px;">
+                <div style="font-size: 1.5rem;">📄</div>
+                <div style="flex: 1; overflow: hidden;">
+                    <div style="font-size: 0.85rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; color: var(--primary);">${m.file.name}</div>
+                    <div style="font-size: 0.7rem; opacity: 0.6;">${(m.file.size / 1024).toFixed(1)} KB</div>
+                </div>
+                <a href="${m.file.data}" download="${m.file.name}" style="background: var(--primary); color: #000; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; font-size: 1rem;">↓</a>
+            </div>
+        `;
+    }
+
     if (m.text) {
         contentHtml += `<div>${m.text}</div>`;
     }
@@ -1268,8 +1284,9 @@ document.getElementById('message-input').addEventListener('paste', (e) => {
     }
 });
 
-// --- Chat Image Handling Logic ---
+// --- Chat File Handling Logic ---
 let pendingImage = null;
+let pendingFile = null; // To hold non-image files (like APKs)
 
 DOM.attachBtn.onclick = () => DOM.chatFileInput.click();
 DOM.chatFileInput.onchange = (e) => {
@@ -1277,8 +1294,26 @@ DOM.chatFileInput.onchange = (e) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (event) => {
-        pendingImage = event.target.result;
-        DOM.imagePreviewImg.src = pendingImage;
+        const data = event.target.result;
+        
+        // Image logic
+        if (file.type.startsWith('image/')) {
+            pendingImage = data;
+            pendingFile = null;
+            DOM.imagePreviewImg.src = data;
+        } else {
+            // Document/Generic file logic
+            pendingFile = {
+                name: file.name,
+                type: file.type,
+                data: data,
+                size: file.size
+            };
+            pendingImage = null;
+            // Use a generic file icon for preview
+            DOM.imagePreviewImg.src = "https://cdn-icons-png.flaticon.com/512/2991/2991108.png";
+        }
+        
         DOM.imagePreviewArea.style.display = "block";
         toggleInputButtons();
     };
@@ -1287,6 +1322,7 @@ DOM.chatFileInput.onchange = (e) => {
 
 DOM.closePreviewBtn.onclick = () => {
     pendingImage = null;
+    pendingFile = null;
     DOM.imagePreviewArea.style.display = "none";
     DOM.chatFileInput.value = "";
     toggleInputButtons();
@@ -1320,7 +1356,7 @@ async function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     
-    if(!text && !pendingImage) return; 
+    if(!text && !pendingImage && !pendingFile) return; 
     if(!activeChatObj || !mqttClient) return;
 
     // Check if we are blocked by this user
@@ -1331,8 +1367,11 @@ async function sendMessage() {
 
     input.value = ""; 
     const currentPendingImage = pendingImage; // Capture it
+    const currentPendingFile = pendingFile; // Capture it
     const currentReplyTo = replyToMsgObj; // Capture it
+    
     pendingImage = null;
+    pendingFile = null;
     replyToMsgObj = null;
     DOM.imagePreviewArea.style.display = "none";
     DOM.replyArea.style.display = "none";
@@ -1358,6 +1397,7 @@ async function sendMessage() {
         senderAvatarY: currentUser.avatarY || 0,
         text: text,
         image: processedImage, 
+        file: currentPendingFile, // Name, Type, and Data
         replyTo: currentReplyTo ? {
             msgId: currentReplyTo.msgId,
             senderName: currentReplyTo.senderName,
@@ -1370,7 +1410,7 @@ async function sendMessage() {
     
     if (saveLocalMessage(roomId, msgPayload)) {
         appendSingleMessageUI(msgPayload);
-        const previewText = msgPayload.image ? "📷 Photo" : msgPayload.text;
+        const previewText = msgPayload.image ? "📷 Photo" : (msgPayload.file ? `📄 ${msgPayload.file.name}` : msgPayload.text);
         updateChatList(activeChatObj.id, activeChatObj.name, activeChatObj.avatar, previewText, activeChatObj.avatarZoom, activeChatObj.avatarX, activeChatObj.avatarY);
     }
     
@@ -1415,6 +1455,29 @@ if (DOM.settingsBtn) {
             DOM.settingsDropdown.style.display = 'none';
         }
     });
+
+    // --- Share App ---
+    if (DOM.shareAppBtn) {
+        DOM.shareAppBtn.addEventListener('click', async () => {
+            DOM.settingsDropdown.style.display = 'none';
+            const shareData = {
+                title: 'M-Chat',
+                text: 'Fast, secure, and beautiful messaging. Join me on M-Chat!',
+                url: 'https://royal-fragrance-2.vercel.app/'
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    navigator.clipboard.writeText(shareData.url);
+                    alert("App link copied to clipboard! You can now paste and send it to your friends.");
+                }
+            } catch (err) {
+                console.log('Error sharing: ', err);
+            }
+        });
+    }
 
     // --- Delete Account ---
     DOM.deleteAccountBtn.addEventListener('click', () => {
@@ -1676,7 +1739,7 @@ let isRecCancelled = false;
 let startRecX = 0;
 
 function toggleInputButtons() {
-    if (DOM.messageInput.value.trim().length > 0 || pendingImage) {
+    if (DOM.messageInput.value.trim().length > 0 || pendingImage || pendingFile) {
         DOM.micBtn.style.display = 'none';
         DOM.sendBtn.style.display = 'flex';
     } else {
