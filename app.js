@@ -89,7 +89,12 @@ async function startBootFlow() {
     const splashDelay = new Promise(res => setTimeout(res, 800)); // Shorter delay
     await splashDelay;
     
-    finalizeBoot();
+    try {
+        finalizeBoot();
+    } catch (err) {
+        console.error("Boot failure:", err);
+        showScreen('onboarding'); // Fallback
+    }
     clearTimeout(safetyValve);
 }
 
@@ -98,9 +103,11 @@ function finalizeBoot() {
     if (localData) {
         try {
             currentUser = JSON.parse(localData);
+            if (!currentUser || !currentUser.id || !currentUser.name) throw new Error("Invalid user data");
             loadMainApp();
         } catch(e) {
-            console.error("Local data corrupted:", e);
+            console.error("Local data corrupted or app failure:", e);
+            localStorage.removeItem('mchat_currentUser'); // Clear bad data
             showScreen('onboarding');
         }
     } else {
@@ -176,6 +183,15 @@ function createLetterAvatar(name) {
 
 // --- Account Generation ---
 
+DOM.generateBtn.addEventListener('click', async () => {
+    const name = DOM.nameInput.value.trim();
+    if (!name) {
+        DOM.statusMsg.innerText = "Please enter your name first.";
+        return;
+    }
+
+    DOM.generateBtn.disabled = true;
+    DOM.generateBtn.innerText = "Generating...";
     DOM.statusMsg.innerText = "Generating secure ID...";
 
     const avatar = createLetterAvatar(name);
@@ -204,24 +220,39 @@ DOM.startChatBtn.addEventListener('click', () => {
 // --- Main App & MQTT Logic ---
 
 function loadMainApp() {
-    if (!currentUser) return;
+    try {
+        if (!currentUser) return showScreen('onboarding');
 
-    // Header
-    DOM.myNameDisplay.innerText = currentUser.name;
-    DOM.myIdDisplay.innerText = "ID: " + currentUser.id;
-    DOM.myAvatar.src = createLetterAvatar(currentUser.name);
-    DOM.myAvatar.style.transform = `none`;
+        // Header
+        DOM.myNameDisplay.innerText = currentUser.name;
+        DOM.myIdDisplay.innerText = "ID: " + currentUser.id;
+        DOM.myAvatar.src = createLetterAvatar(currentUser.name);
+        DOM.myAvatar.style.transform = `none`;
 
-    showScreen('app');
-    
-    initMQTT();
-    
-    // Setup UI bindings
-    document.getElementById('add-friend-btn').addEventListener('click', startNewChat);
-    renderChatList();
+        showScreen('app');
+        
+        initMQTT();
+        
+        // Setup UI bindings once
+        const addBtn = document.getElementById('add-friend-btn');
+        if (addBtn && !addBtn.dataset.bound) {
+            addBtn.addEventListener('click', startNewChat);
+            addBtn.dataset.bound = "true";
+        }
+        renderChatList();
+    } catch (err) {
+        console.error("Main app load error:", err);
+        showScreen('onboarding');
+    }
 }
 
 function initMQTT() {
+    if (typeof mqtt === 'undefined') {
+        console.warn("MQTT library not loaded yet. Retrying in 1s...");
+        setTimeout(initMQTT, 1000);
+        return;
+    }
+
     const clientId = 'mchat_' + currentUser.id + '_' + Math.random().toString(16).substr(2, 4);
     const host = 'wss://broker.emqx.io:8084/mqtt';
     
