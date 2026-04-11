@@ -965,7 +965,7 @@ function handleInboxMessage(payload) {
     if (!payload || !payload.senderId) return;
 
     // Guard: Don't process non-message signals as standard messages
-    const signalTypes = ["READ_RECEIPT", "CHAT_CLOSED_DELETE", "DELETE_SINGLE_MSG"];
+    const signalTypes = ["READ_RECEIPT", "CHAT_CLOSED_DELETE", "DELETE_SINGLE_MSG", "MESSAGES_SEEN", "VOICE_LISTENED"];
     if (payload.type && signalTypes.includes(payload.type)) return;
 
     const roomId = getChatRoomId(currentUser.id, payload.senderId);
@@ -1025,6 +1025,28 @@ function handleInboxMessage(payload) {
         
         // If we are currently actively looking at their chat, render the bubble
         if (activeChatObj && activeChatObj.id === payload.senderId) {
+            // Instantly mark as seen because the user is already looking at the chat
+            payload.status = "seen";
+            payload.seenAt = Date.now();
+            
+            // Re-save the updated status
+            let roomId = getChatRoomId(currentUser.id, payload.senderId);
+            let stored = JSON.parse(localStorage.getItem(roomId));
+            let msgToUpdate = stored.find(m => m.msgId === payload.msgId);
+            if (msgToUpdate) {
+                msgToUpdate.status = "seen";
+                msgToUpdate.seenAt = payload.seenAt;
+                localStorage.setItem(roomId, JSON.stringify(stored));
+            }
+
+            // Immediately notify sender
+            const seenSignal = {
+                type: "MESSAGES_SEEN",
+                senderId: currentUser.id,
+                timestamp: Date.now()
+            };
+            mqttClient.publish(`mchat/inbox/${payload.senderId}`, JSON.stringify(seenSignal));
+
             // Update the live header name/avatar if they changed
             document.getElementById('active-chat-name').innerText = payload.senderName;
             const mini = document.getElementById('active-chat-avatar');
@@ -1120,6 +1142,10 @@ async function sendMessage() {
     DOM.imagePreviewArea.style.display = "none";
     DOM.replyArea.style.display = "none";
     DOM.chatFileInput.value = "";
+    
+    // Reset buttons to default (Voice Message)
+    DOM.micBtn.style.display = 'flex';
+    DOM.sendBtn.style.display = 'none';
     
     let processedImage = null;
     if (currentPendingImage) {
