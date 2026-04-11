@@ -390,6 +390,7 @@ function initMQTT() {
                     return;
                 }
                 handleInboxMessage(payload);
+            }
             
             // Handle Status Updates
             if (topic.startsWith('mchat/status/') && activeChatObj) {
