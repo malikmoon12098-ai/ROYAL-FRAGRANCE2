@@ -1,12 +1,11 @@
-const CACHE_NAME = 'm-chat-cache-v41';
+const CACHE_NAME = 'm-chat-cache-v42';
 const urlsToCache = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icons/icon-192x192.png',
-  './icons/icon-512x512.png'
+  './assets/logo.png'
 ];
 
 self.addEventListener('install', event => {
