@@ -254,14 +254,14 @@ function initMQTT() {
     }
 
     const clientId = 'mchat_' + currentUser.id + '_' + Math.random().toString(16).substr(2, 4);
-    // Using HiveMQ for better stability
-    const host = 'wss://broker.hivemq.com:8000/mqtt'; 
+    // Correct port for WSS on HiveMQ is 8884
+    const host = 'wss://broker.hivemq.com:8884/mqtt'; 
     
-    console.log("Connecting to MQTT broker...");
+    console.log("Connecting to HiveMQ Broker (WSS)...");
     mqttClient = mqtt.connect(host, {
         clientId: clientId,
         clean: true,
-        connectTimeout: 4000,
+        connectTimeout: 5000,
         reconnectPeriod: 2000,
         // Last Will: If we disconnect, others see us as offline with a timestamp
         will: {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'm-chat-cache-v2';
+const CACHE_NAME = 'm-chat-cache-v3';
 const urlsToCache = [
   './',
   './index.html',
