@@ -101,6 +101,7 @@ let mqttClient = null;
 let activeChatObj = null;
 let chatList = JSON.parse(localStorage.getItem('mchat_chatlist')) || {};
 let blockList = JSON.parse(localStorage.getItem('mchat_blocklist')) || [];
+let blockedByList = JSON.parse(localStorage.getItem('mchat_blockedBy')) || []; // Track who blocked us
 let contactToActObj = null;
 let generatedAvatarUrl = null; 
 
@@ -421,17 +422,27 @@ function initMQTT() {
                 
                 // If the message is a block reject signal
                 if (payload.type === "YOU_ARE_BLOCKED") {
+                    if (payload.blockerId && !blockedByList.includes(payload.blockerId)) {
+                        blockedByList.push(payload.blockerId);
+                        localStorage.setItem('mchat_blockedBy', JSON.stringify(blockedByList));
+                    }
                     DOM.blockAlertModal.style.display = 'flex';
                     return;
                 }
                 
-                // If the sender is in our block list, reject it silently and send YOU_ARE_BLOCKED
+                // If the sender is in our block list, reject it silently and send YOU_ARE_BLOCKED back
                 if (blockList.includes(payload.senderId)) {
-                    if (payload.msgId && !payload.type) { // only reject actual chat messages
-                        const rejectPayload = { type: "YOU_ARE_BLOCKED" };
+                    if (payload.msgId && !payload.type) { 
+                        const rejectPayload = { type: "YOU_ARE_BLOCKED", blockerId: currentUser.id };
                         mqttClient.publish(`mchat/inbox/${payload.senderId}`, JSON.stringify(rejectPayload), {qos: 1});
                     }
                     return;
+                }
+
+                // If we receive a message from someone, it means we are NOT blocked by them (or they unblocked us)
+                if (payload.senderId && blockedByList.includes(payload.senderId)) {
+                    blockedByList = blockedByList.filter(id => id !== payload.senderId);
+                    localStorage.setItem('mchat_blockedBy', JSON.stringify(blockedByList));
                 }
 
                 handleInboxMessage(payload);
@@ -1312,6 +1323,12 @@ async function sendMessage() {
     if(!text && !pendingImage) return; 
     if(!activeChatObj || !mqttClient) return;
 
+    // Check if we are blocked by this user
+    if (blockedByList.includes(activeChatObj.id)) {
+        DOM.blockAlertModal.style.display = 'flex';
+        return;
+    }
+
     input.value = ""; 
     const currentPendingImage = pendingImage; // Capture it
     const currentReplyTo = replyToMsgObj; // Capture it
@@ -1748,6 +1765,12 @@ function handleRecordingStop() {
 
 function sendVoiceMessage(audioData) {
     if (!activeChatObj || !mqttClient) return;
+
+    // Check if we are blocked by this user
+    if (blockedByList.includes(activeChatObj.id)) {
+        DOM.blockAlertModal.style.display = 'flex';
+        return;
+    }
 
     const roomId = getChatRoomId(currentUser.id, activeChatObj.id);
     const msgPayload = {
